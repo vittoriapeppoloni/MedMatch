@@ -541,18 +541,29 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
     }
     
     // ECOG Performance Status
-    if (extractedInfo.medicalHistory?.comorbidities?.includes('ECOG PS')) {
+    if (extractedInfo.medicalHistory?.comorbidities && 
+        typeof extractedInfo.medicalHistory.comorbidities === 'string' &&
+        extractedInfo.medicalHistory.comorbidities.includes('ECOG PS')) {
+      
       const ecogMatch = extractedInfo.medicalHistory.comorbidities.match(/ECOG\s+PS:\s*(\d)/i);
       if (ecogMatch) {
         const ecogPS = parseInt(ecogMatch[1]);
         
-        if (ecogPS <= 1 && trial.eligibilityCriteria?.inclusions?.includes('ECOG ≤1')) {
+        if (ecogPS <= 1 && 
+            trial.eligibilityCriteria?.inclusions && 
+            typeof trial.eligibilityCriteria.inclusions === 'string' &&
+            trial.eligibilityCriteria.inclusions.includes('ECOG ≤1')) {
+          
           score += 15;
           matchReasons.push({ 
             factor: 'Good Performance Status', 
             description: 'ECOG PS ≤1 meets trial requirements for good functional status' 
           });
-        } else if (ecogPS > 1 && trial.eligibilityCriteria?.inclusions?.includes('ECOG ≤1')) {
+        } else if (ecogPS > 1 && 
+                  trial.eligibilityCriteria?.inclusions && 
+                  typeof trial.eligibilityCriteria.inclusions === 'string' &&
+                  trial.eligibilityCriteria.inclusions.includes('ECOG ≤1')) {
+          
           score -= 20;
           limitingFactors.push({ 
             factor: 'Performance Status', 
@@ -563,8 +574,13 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
     }
     
     // Check for smoking history if relevant to trial
-    if (extractedInfo.medicalHistory?.comorbidities?.includes('Ex-smoker') && 
-        trial.eligibilityCriteria?.inclusions?.includes('Smoking history')) {
+    if (extractedInfo.medicalHistory?.comorbidities && 
+        typeof extractedInfo.medicalHistory.comorbidities === 'string' &&
+        extractedInfo.medicalHistory.comorbidities.includes('Ex-smoker') && 
+        trial.eligibilityCriteria?.inclusions && 
+        typeof trial.eligibilityCriteria.inclusions === 'string' &&
+        trial.eligibilityCriteria.inclusions.includes('Smoking history')) {
+      
       score += 10;
       matchReasons.push({ 
         factor: 'Smoking History', 
@@ -577,7 +593,9 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
     let normalizedScore = Math.min(Math.max(score, 0), 100);
     
     // Named trial has special high score
-    if (trial.name.includes('KRASCENDO') && extractedInfo.diagnosis?.subtype?.includes('KRAS G12C')) {
+    if (trial.name && trial.name.includes('KRASCENDO') && 
+        extractedInfo.diagnosis?.subtype && typeof extractedInfo.diagnosis.subtype === 'string' && 
+        extractedInfo.diagnosis.subtype.includes('KRAS G12C')) {
       normalizedScore = Math.max(normalizedScore, 90); // Ensure very high match for mentioned trial
     }
     
