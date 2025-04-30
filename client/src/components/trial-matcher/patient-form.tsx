@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { readFileAsText } from "@/lib/file-utils";
 import {
   Form,
   FormControl,
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/select";
 
 const formSchema = z.object({
-  medicalText: z.string().min(10, "Medical text is required").max(10000),
+  medicalText: z.string().min(10, "Medical text is required"),
 });
 
 interface PatientFormProps {
@@ -43,29 +44,28 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
     },
   });
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setUploadedFile(file);
       
-      // Read the file contents
-      const reader = new FileReader();
+      // Show a loading message while processing the file
+      form.setValue('medicalText', 'Processing file, please wait...');
       
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          // Set the file contents to the medical text field
-          const fileContent = event.target.result.toString();
-          form.setValue('medicalText', fileContent);
+      try {
+        // Use our utility function to read text from various file types
+        const fileContent = await readFileAsText(file);
+        
+        // Set the file contents to the medical text field
+        form.setValue('medicalText', fileContent);
+        
+        // If the content is too small, it might not have been parsed correctly
+        if (fileContent.length < 100 && file.type !== 'text/plain') {
+          console.warn('File content might not have been parsed correctly');
         }
-      };
-      
-      // For all file types, attempt to read as text - this works for TXT files
-      // and sometimes for PDF/DOC files if they're plain text-based
-      reader.readAsText(file);
-      
-      // Tell the user we're trying to extract text
-      if (file.type !== 'text/plain' && !file.name.endsWith('.txt')) {
-        alert("Note: For non-text files like PDF and DOC, the text extraction may be limited. If you don't see proper content, please copy and paste the text directly into the text box.");
+      } catch (error) {
+        console.error('Error reading file:', error);
+        form.setValue('medicalText', 'Error reading file. Please try again or paste the text manually.');
       }
     }
   };
@@ -105,7 +105,7 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
                 e.preventDefault();
                 setIsDragging(false);
               }}
-              onDrop={(e) => {
+              onDrop={async (e) => {
                 e.preventDefault();
                 setIsDragging(false);
                 
@@ -113,23 +113,23 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
                   const file = e.dataTransfer.files[0];
                   setUploadedFile(file);
                   
-                  // Read the file contents
-                  const reader = new FileReader();
+                  // Show a loading message while processing the file
+                  form.setValue('medicalText', 'Processing file, please wait...');
                   
-                  reader.onload = (event) => {
-                    if (event.target?.result) {
-                      // Set the file contents to the medical text field
-                      const fileContent = event.target.result.toString();
-                      form.setValue('medicalText', fileContent);
+                  try {
+                    // Use our utility function to read text from various file types
+                    const fileContent = await readFileAsText(file);
+                    
+                    // Set the file contents to the medical text field
+                    form.setValue('medicalText', fileContent);
+                    
+                    // If the content is too small, it might not have been parsed correctly
+                    if (fileContent.length < 100 && file.type !== 'text/plain') {
+                      console.warn('File content might not have been parsed correctly');
                     }
-                  };
-                  
-                  // For all file types, attempt to read as text
-                  reader.readAsText(file);
-                  
-                  // Tell the user we're trying to extract text
-                  if (file.type !== 'text/plain' && !file.name.endsWith('.txt')) {
-                    alert("Note: For non-text files like PDF and DOC, the text extraction may be limited. If you don't see proper content, please copy and paste the text directly into the text box.");
+                  } catch (error) {
+                    console.error('Error reading file:', error);
+                    form.setValue('medicalText', 'Error reading file. Please try again or paste the text manually.');
                   }
                 }
               }}
