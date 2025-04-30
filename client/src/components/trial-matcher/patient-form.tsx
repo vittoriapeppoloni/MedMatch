@@ -37,6 +37,7 @@ interface PatientFormProps {
 
 export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -53,8 +54,25 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
       const file = e.target.files[0];
       setUploadedFile(file);
       
-      // In a real application, we would extract text from the file here
-      // For this demo, we'll just show the filename
+      // Read the file contents
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          // Set the file contents to the medical text field
+          const fileContent = event.target.result.toString();
+          form.setValue('medicalText', fileContent);
+        }
+      };
+      
+      // For text files and compatibility
+      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        reader.readAsText(file);
+      } else {
+        // For other file types, we would need server-side processing
+        // For now, show a placeholder message
+        form.setValue('medicalText', `This is a placeholder for the contents of ${file.name}. In a production environment, we would extract the text from this document using server-side processing. For testing, please paste your medical text directly in the box below.`);
+      }
     }
   };
   
@@ -136,21 +154,60 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
           
           <div className="mb-4">
             <FormLabel className="block text-sm font-medium text-neutral-600 mb-1">Upload Medical Documentation</FormLabel>
-            <div className="border-2 border-dashed border-neutral-300 rounded-md p-4 text-center">
-              <Icon name="upload" className="mx-auto h-8 w-8 text-neutral-400 mb-2" />
+            <div 
+              className={`border-2 border-dashed ${isDragging ? 'border-primary' : 'border-neutral-300'} 
+                         rounded-md p-4 text-center hover:border-primary transition-colors`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  const file = e.dataTransfer.files[0];
+                  setUploadedFile(file);
+                  
+                  // Read the file contents
+                  const reader = new FileReader();
+                  
+                  reader.onload = (event) => {
+                    if (event.target?.result) {
+                      // Set the file contents to the medical text field
+                      const fileContent = event.target.result.toString();
+                      form.setValue('medicalText', fileContent);
+                    }
+                  };
+                  
+                  // For text files and compatibility
+                  if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+                    reader.readAsText(file);
+                  } else {
+                    // For other file types, show a placeholder
+                    form.setValue('medicalText', `This is a placeholder for the contents of ${file.name}. In a production environment, we would extract the text from this document using server-side processing. For testing, please paste your medical text directly in the box below.`);
+                  }
+                }
+              }}
+            >
+              <Icon name="upload" className={`mx-auto h-8 w-8 ${isDragging ? 'text-primary' : 'text-neutral-400'} mb-2`} />
               <p className="text-sm text-neutral-500 mb-2">
                 {uploadedFile 
                   ? `File selected: ${uploadedFile.name}`
                   : "Drag and drop files here, or click to browse"
                 }
               </p>
-              <p className="text-xs text-neutral-500">Supported formats: PDF, DOC, DOCX (max 10MB)</p>
+              <p className="text-xs text-neutral-500">Supported formats: TXT, PDF, DOC, DOCX (max 10MB)</p>
               <Input
                 type="file"
                 id="fileUpload"
                 className="hidden"
                 onChange={handleFileChange}
-                accept=".pdf,.doc,.docx"
+                accept=".txt,.pdf,.doc,.docx"
               />
               <Button
                 type="button"
