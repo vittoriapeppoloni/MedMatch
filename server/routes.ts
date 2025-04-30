@@ -734,10 +734,17 @@ function addLungCancerTrialsIfNeeded(trials: any[]) {
 
 // NLP helper for extracting medical information from text
 function extractMedicalInfo(text: string) {
+  const emptyResult = {
+    diagnosis: { primaryDiagnosis: '', subtype: '', diagnosisDate: '', stage: '' },
+    treatments: { pastTreatments: '', currentTreatment: '', plannedTreatment: '' },
+    medicalHistory: { comorbidities: '', allergies: '', medications: '' },
+    demographics: { age: '', gender: '' }
+  };
+  
   try {
     if (!text || typeof text !== 'string') {
       console.error("Invalid text input to extractMedicalInfo");
-      return {};
+      return emptyResult;
     }
     
     // Clean and normalize the text
