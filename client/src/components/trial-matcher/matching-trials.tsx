@@ -303,7 +303,7 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
                             <div className="space-y-2 mt-1">
                               {match.limitingFactors?.map((factor: any, index: number) => (
                                 <div key={index} className="flex items-start">
-                                  <Icon name="warning" className="text-warning mr-1 h-4 w-4 mt-0.5" />
+                                  <AlertTriangle className="text-warning mr-1 h-4 w-4 mt-0.5" />
                                   <div>
                                     <p className="text-sm font-medium">{factor.factor}</p>
                                     <p className="text-xs text-neutral-500">{factor.description}</p>
@@ -327,7 +327,7 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
           })
         ) : (
           <div className="text-center py-12">
-            <Icon name="warning" className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+            <AlertTriangle className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
             <p className="text-neutral-600">No matching trials found with the current filters.</p>
             <p className="text-sm text-neutral-500 mt-1">Try adjusting your filter criteria.</p>
           </div>

@@ -597,11 +597,13 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
 function addLungCancerTrialsIfNeeded(trials: any[]) {
   // Check if we already have the KRASCENDO trial
   const hasKrascendoTrial = trials.some(trial => 
-    trial.name.includes('KRASCENDO') || (trial.otherIds && trial.otherIds.includes('KRASCENDO')));
+    (trial.name && trial.name.includes('KRASCENDO')) || 
+    (trial.otherIds && Array.isArray(trial.otherIds) && trial.otherIds.includes('KRASCENDO')));
   
   // If not, add it
   if (!hasKrascendoTrial) {
-    const maxId = trials.reduce((max, trial) => Math.max(max, trial.id), 0);
+    const maxId = trials.reduce((max, trial) => 
+      trial.id ? Math.max(max, trial.id) : max, 0);
     
     trials.push({
       id: maxId + 1,
