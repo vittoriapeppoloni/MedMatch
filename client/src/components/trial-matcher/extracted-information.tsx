@@ -28,19 +28,19 @@ export default function ExtractedInformation({ data }: ExtractedInfoProps) {
             <div className="mb-2">
               <span className="text-xs font-medium text-neutral-500">Primary Diagnosis:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.diagnosis?.primaryDiagnosis || "Breast Cancer (Stage 2, T2N0M0)"}
+                {data.diagnosis?.primaryDiagnosis || "Not detected"}
               </p>
             </div>
             <div className="mb-2">
               <span className="text-xs font-medium text-neutral-500">Subtype:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.diagnosis?.subtype || "HR+/HER2-"}
+                {data.diagnosis?.subtype || "Not detected"}
               </p>
             </div>
             <div>
               <span className="text-xs font-medium text-neutral-500">Diagnosis Date:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.diagnosis?.diagnosisDate || "October 2023"}
+                {data.diagnosis?.diagnosisDate || "Not detected"}
               </p>
             </div>
           </div>
@@ -52,19 +52,19 @@ export default function ExtractedInformation({ data }: ExtractedInfoProps) {
             <div className="mb-2">
               <span className="text-xs font-medium text-neutral-500">Past Treatments:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.treatments?.pastTreatments || "Lumpectomy, Sentinel lymph node biopsy"}
+                {data.treatments?.pastTreatments || "Not detected"}
               </p>
             </div>
             <div className="mb-2">
               <span className="text-xs font-medium text-neutral-500">Current Treatment:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.treatments?.currentTreatment || "Radiation therapy"}
+                {data.treatments?.currentTreatment || "Not detected"}
               </p>
             </div>
             <div>
               <span className="text-xs font-medium text-neutral-500">Planned Treatment:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.treatments?.plannedTreatment || "Hormone therapy"}
+                {data.treatments?.plannedTreatment || "Not detected"}
               </p>
             </div>
           </div>
@@ -76,19 +76,19 @@ export default function ExtractedInformation({ data }: ExtractedInfoProps) {
             <div className="mb-2">
               <span className="text-xs font-medium text-neutral-500">Comorbidities:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.medicalHistory?.comorbidities || "Hypertension (controlled), Type 2 Diabetes (HbA1c 6.8%)"}
+                {data.medicalHistory?.comorbidities || "Not detected"}
               </p>
             </div>
             <div className="mb-2">
               <span className="text-xs font-medium text-neutral-500">Medications:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.medicalHistory?.medications || "Lisinopril, Metformin"}
+                {data.medicalHistory?.medications || "Not detected"}
               </p>
             </div>
             <div>
               <span className="text-xs font-medium text-neutral-500">Allergies:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.medicalHistory?.allergies || "No known drug allergies"}
+                {data.medicalHistory?.allergies || "Not detected"}
               </p>
             </div>
           </div>
