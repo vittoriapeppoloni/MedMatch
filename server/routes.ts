@@ -10,7 +10,8 @@ import {
   insertTrialMatchSchema 
 } from "@shared/schema";
 import natural from "natural";
-import { extractMedicalInfo } from "./nlp";
+// Import the external NLP module only for advanced processing
+import { extractEntities } from "./nlp";
 
 // Create tokenizer for NLP operations
 const tokenizer = new natural.WordTokenizer();
@@ -282,15 +283,16 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
 
 // NLP helper for extracting medical information from text
 function extractMedicalInfo(text: string) {
-  // Process text with natural.js
-  const tokens = tokenizer.tokenize(text.toLowerCase());
+  // Clean and normalize the text
+  const cleanText = text.replace(/\s+/g, ' ').trim();
   
   // Initialize extracted info structure
   const extractedInfo = {
     diagnosis: {
       primaryDiagnosis: '',
       subtype: '',
-      diagnosisDate: ''
+      diagnosisDate: '',
+      stage: ''
     },
     treatments: {
       pastTreatments: '',
@@ -299,72 +301,286 @@ function extractMedicalInfo(text: string) {
     },
     medicalHistory: {
       comorbidities: '',
-      allergies: ''
+      allergies: '',
+      medications: ''
     },
     demographics: {
       age: '',
       gender: ''
     }
   };
+
+  // Extract cancer type and primary diagnosis with improved pattern matching
+  let cancerDiagnosis = '';
   
-  // Extract information using simple pattern matching
-  // This is a simplified example - in a real application, use more sophisticated NLP
+  // Try to find any cancer type
+  const cancerTypes = [
+    { regex: /\b(breast cancer|carcinoma of( the)? breast|mammary carcinoma)\b/i, value: 'Breast Cancer' },
+    { regex: /\b(lung cancer|carcinoma of( the)? lung|pulmonary (carcinoma|cancer))\b/i, value: 'Lung Cancer' },
+    { regex: /\b(colon cancer|colorectal cancer|carcinoma of( the)? colon)\b/i, value: 'Colorectal Cancer' },
+    { regex: /\b(prostate cancer|carcinoma of( the)? prostate)\b/i, value: 'Prostate Cancer' },
+    { regex: /\b(melanoma|malignant melanoma)\b/i, value: 'Melanoma' },
+    { regex: /\b(leukemia|leukaemia)\b/i, value: 'Leukemia' },
+    { regex: /\b(lymphoma|hodgkin|non-hodgkin)\b/i, value: 'Lymphoma' },
+    { regex: /\b(ovarian cancer|carcinoma of( the)? ovary)\b/i, value: 'Ovarian Cancer' },
+    { regex: /\b(pancreatic cancer|carcinoma of( the)? pancreas)\b/i, value: 'Pancreatic Cancer' },
+    { regex: /\b(liver cancer|hepatocellular carcinoma|carcinoma of( the)? liver)\b/i, value: 'Liver Cancer' }
+  ];
   
-  // Extract diagnosis
-  if (text.match(/stage\s*2|stage\s*ii/i)) {
-    extractedInfo.diagnosis.primaryDiagnosis = 'Breast Cancer (Stage 2, T2N0M0)';
-  } else if (text.match(/breast\s*cancer/i)) {
-    extractedInfo.diagnosis.primaryDiagnosis = 'Breast Cancer';
-  }
-  
-  if (text.match(/hr\+\/her2-|hormone\s*receptor\s*positive.*her2\s*negative/i)) {
-    extractedInfo.diagnosis.subtype = 'HR+/HER2-';
-  }
-  
-  if (text.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{4}/i)) {
-    const match = text.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{4}/i);
-    if (match) {
-      extractedInfo.diagnosis.diagnosisDate = match[0];
+  for (const cancer of cancerTypes) {
+    if (cancer.regex.test(cleanText)) {
+      cancerDiagnosis = cancer.value;
+      break;
     }
   }
   
-  // Extract treatments
-  if (text.match(/lumpectomy/i)) {
-    extractedInfo.treatments.pastTreatments = 'Lumpectomy, Sentinel lymph node biopsy';
+  // Set primary diagnosis
+  if (cancerDiagnosis) {
+    extractedInfo.diagnosis.primaryDiagnosis = cancerDiagnosis;
+  } else if (cleanText.match(/\b(cancer|carcinoma|malignancy|tumor|tumour)\b/i)) {
+    // Generic cancer mention
+    extractedInfo.diagnosis.primaryDiagnosis = 'Cancer (type not specified)';
   }
   
-  if (text.match(/radiation\s*therapy/i)) {
-    extractedInfo.treatments.currentTreatment = 'Radiation therapy';
+  // Extract cancer stage with improved patterns
+  let stage = '';
+  
+  // Look for TNM classification
+  const tnmMatch = cleanText.match(/\b(T[0-4][a-d]?N[0-3][a-d]?M[0-1][a-d]?|T[0-4][a-d]?N[0-3][a-d]?|T[0-4][a-d]?)\b/i);
+  if (tnmMatch) {
+    stage = tnmMatch[0].toUpperCase();
   }
   
-  if (text.match(/hormone\s*therapy/i)) {
-    extractedInfo.treatments.plannedTreatment = 'Hormone therapy';
-  }
-  
-  // Extract medical history
-  if (text.match(/hypertension/i)) {
-    extractedInfo.medicalHistory.comorbidities = 'Hypertension (controlled)';
+  // Look for stage number (Roman or Arabic)
+  const stageMatch = cleanText.match(/\bstage\s*(I{1,3}V?|IV|1|2|3|4)([A-C]|\s*A|\s*B|\s*C)?\b/i);
+  if (stageMatch) {
+    let stageNum = stageMatch[1].toUpperCase();
+    // Convert Roman numerals to Arabic if needed
+    if (stageNum === 'I') stageNum = '1';
+    else if (stageNum === 'II') stageNum = '2';
+    else if (stageNum === 'III') stageNum = '3';
+    else if (stageNum === 'IV') stageNum = '4';
     
-    if (text.match(/type\s*2\s*diabetes/i)) {
-      extractedInfo.medicalHistory.comorbidities += ', Type 2 Diabetes';
+    // Add substage if available
+    let stageFull = `Stage ${stageNum}`;
+    if (stageMatch[2] && stageMatch[2].trim()) {
+      stageFull += stageMatch[2].trim().toUpperCase();
     }
-  } else if (text.match(/type\s*2\s*diabetes/i)) {
-    extractedInfo.medicalHistory.comorbidities = 'Type 2 Diabetes';
+    
+    stage = stage ? `${stageFull} (${stage})` : stageFull;
+  } else if (stage) {
+    // We only have TNM
+    stage = `TNM: ${stage}`;
   }
   
-  if (text.match(/no\s*known\s*drug\s*allergies/i)) {
+  // Update primary diagnosis with stage if available
+  if (stage) {
+    extractedInfo.diagnosis.stage = stage;
+    if (extractedInfo.diagnosis.primaryDiagnosis) {
+      extractedInfo.diagnosis.primaryDiagnosis += ` (${stage})`;
+    }
+  }
+  
+  // Extract cancer subtype with improved patterns
+  const subtypePatterns = [
+    { regex: /\b(HR\+\s*[\/,]\s*HER2\-|hormone receptor positive[\s,]+HER2 negative|ER\+\s*PR\+\s*HER2\-)\b/i, value: 'HR+/HER2-' },
+    { regex: /\b(HR\-\s*[\/,]\s*HER2\+|hormone receptor negative[\s,]+HER2 positive|ER\-\s*PR\-\s*HER2\+)\b/i, value: 'HR-/HER2+' },
+    { regex: /\b(triple negative|TNBC|ER\-\s*PR\-\s*HER2\-)\b/i, value: 'Triple Negative' },
+    { regex: /\b(HR\+\s*[\/,]\s*HER2\+|ER\+\s*PR\+\s*HER2\+)\b/i, value: 'HR+/HER2+' }
+  ];
+  
+  for (const subtype of subtypePatterns) {
+    if (subtype.regex.test(cleanText)) {
+      extractedInfo.diagnosis.subtype = subtype.value;
+      break;
+    }
+  }
+  
+  // Extract diagnosis date with improved patterns
+  // Standard date formats in text
+  const datePatterns = [
+    // Month Year
+    { regex: /(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i },
+    // MM/DD/YYYY or DD/MM/YYYY
+    { regex: /\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})\b/ },
+    // YYYY-MM-DD
+    { regex: /\b(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})\b/ }
+  ];
+  
+  // Look for dates in context of diagnosis
+  const diagnosisSentences = cleanText.split(/[.!?]+/)
+    .filter(s => /diagnos(is|ed)|cancer|carcinoma|malignancy|stage/i.test(s));
+    
+  if (diagnosisSentences.length > 0) {
+    for (const sentence of diagnosisSentences) {
+      for (const pattern of datePatterns) {
+        const match = sentence.match(pattern.regex);
+        if (match) {
+          extractedInfo.diagnosis.diagnosisDate = match[0];
+          break;
+        }
+      }
+      if (extractedInfo.diagnosis.diagnosisDate) break;
+    }
+  }
+  
+  // If not found in diagnosis context, look for any date
+  if (!extractedInfo.diagnosis.diagnosisDate) {
+    for (const pattern of datePatterns) {
+      const match = cleanText.match(pattern.regex);
+      if (match) {
+        extractedInfo.diagnosis.diagnosisDate = match[0];
+        break;
+      }
+    }
+  }
+  
+  // Extract treatments with improved patterns
+  const treatmentPatterns = [
+    { regex: /\b(lumpectomy|breast conservation surgery|partial mastectomy)\b/i, value: 'Lumpectomy', type: 'past' },
+    { regex: /\b(mastectomy|total mastectomy|radical mastectomy)\b/i, value: 'Mastectomy', type: 'past' },
+    { regex: /\b(sentinel (lymph )?node biopsy|SLNB)\b/i, value: 'Sentinel lymph node biopsy', type: 'past' },
+    { regex: /\b(axillary (lymph )?node dissection|ALND)\b/i, value: 'Axillary lymph node dissection', type: 'past' },
+    { regex: /\b(chemotherapy|adjuvant chemotherapy|neoadjuvant chemotherapy)\b/i, value: 'Chemotherapy', type: 'varied' },
+    { regex: /\b(radiation therapy|radiotherapy|RT|XRT)\b/i, value: 'Radiation therapy', type: 'varied' },
+    { regex: /\b(hormone therapy|endocrine therapy|hormonal therapy|tamoxifen|aromatase inhibitor|letrozole|anastrozole)\b/i, value: 'Hormone therapy', type: 'varied' },
+    { regex: /\b(immunotherapy|immune checkpoint inhibitor|pembrolizumab|nivolumab)\b/i, value: 'Immunotherapy', type: 'varied' },
+    { regex: /\b(targeted therapy|HER2-targeted therapy|trastuzumab|herceptin)\b/i, value: 'Targeted therapy', type: 'varied' }
+  ];
+  
+  const pastTreatments = [];
+  const currentTreatments = [];
+  const plannedTreatments = [];
+  
+  for (const treatment of treatmentPatterns) {
+    if (treatment.regex.test(cleanText)) {
+      // Determine if past, current, or planned
+      const context = cleanText.match(new RegExp(`.{0,50}${treatment.regex.source}.{0,50}`, 'i'));
+      
+      if (context) {
+        const contextStr = context[0].toLowerCase();
+        
+        if (treatment.type === 'past' || /underwent|completed|received|had|previous|history of/i.test(contextStr)) {
+          pastTreatments.push(treatment.value);
+        } else if (/currently|ongoing|receiving|undergoing|in progress/i.test(contextStr)) {
+          currentTreatments.push(treatment.value);
+        } else if (/scheduled|planned|will|future|upcoming|recommend|advised|plan/i.test(contextStr)) {
+          plannedTreatments.push(treatment.value);
+        } else {
+          // Default to past treatments if timing unclear
+          pastTreatments.push(treatment.value);
+        }
+      }
+    }
+  }
+  
+  extractedInfo.treatments.pastTreatments = pastTreatments.join(', ');
+  extractedInfo.treatments.currentTreatment = currentTreatments.join(', ');
+  extractedInfo.treatments.plannedTreatment = plannedTreatments.join(', ');
+  
+  // Extract medical history with improved patterns - comorbidities
+  const comorbidityPatterns = [
+    { regex: /\b(hypertension|high blood pressure|HTN)\b/i, value: 'Hypertension' },
+    { regex: /\b(diabetes|type 2 diabetes|type II diabetes|T2DM|DM2)\b/i, value: 'Type 2 Diabetes' },
+    { regex: /\b(type 1 diabetes|T1DM|DM1)\b/i, value: 'Type 1 Diabetes' },
+    { regex: /\b(coronary artery disease|CAD|heart disease)\b/i, value: 'Coronary Artery Disease' },
+    { regex: /\b(congestive heart failure|CHF|heart failure)\b/i, value: 'Congestive Heart Failure' },
+    { regex: /\b(COPD|chronic obstructive pulmonary disease)\b/i, value: 'COPD' },
+    { regex: /\b(asthma)\b/i, value: 'Asthma' },
+    { regex: /\b(hyperlipidemia|high cholesterol|elevated lipids)\b/i, value: 'Hyperlipidemia' },
+    { regex: /\b(chronic kidney disease|CKD|renal failure|kidney failure)\b/i, value: 'Chronic Kidney Disease' },
+    { regex: /\b(hypothyroidism|underactive thyroid)\b/i, value: 'Hypothyroidism' },
+    { regex: /\b(hyperthyroidism|overactive thyroid)\b/i, value: 'Hyperthyroidism' },
+    { regex: /\b(depression|major depressive disorder|MDD)\b/i, value: 'Depression' },
+    { regex: /\b(anxiety|generalized anxiety disorder|GAD)\b/i, value: 'Anxiety' },
+    { regex: /\b(osteoporosis|bone density loss)\b/i, value: 'Osteoporosis' },
+    { regex: /\b(osteoarthritis|OA)\b/i, value: 'Osteoarthritis' },
+    { regex: /\b(rheumatoid arthritis|RA)\b/i, value: 'Rheumatoid Arthritis' }
+  ];
+  
+  const comorbidities = [];
+  
+  for (const condition of comorbidityPatterns) {
+    if (condition.regex.test(cleanText)) {
+      // Check if controlled or uncontrolled
+      const context = cleanText.match(new RegExp(`.{0,50}${condition.regex.source}.{0,50}`, 'i'));
+      
+      if (context) {
+        const contextStr = context[0].toLowerCase();
+        let value = condition.value;
+        
+        if (/controlled|well-controlled|well controlled|managed|stable/i.test(contextStr)) {
+          value += ' (controlled)';
+        } else if (/uncontrolled|poorly controlled|unstable|poorly managed/i.test(contextStr)) {
+          value += ' (uncontrolled)';
+        }
+        
+        comorbidities.push(value);
+      }
+    }
+  }
+  
+  extractedInfo.medicalHistory.comorbidities = comorbidities.join(', ');
+  
+  // Extract medications
+  const medications = [];
+  const commonMeds = [
+    'lisinopril', 'amlodipine', 'metoprolol', 'atenolol', 'losartan', 'hydrochlorothiazide', 'HCTZ',
+    'metformin', 'insulin', 'glipizide', 'sitagliptin', 'glyburide',
+    'atorvastatin', 'simvastatin', 'rosuvastatin', 'pravastatin', 'lovastatin',
+    'aspirin', 'clopidogrel', 'warfarin', 'apixaban', 'rivaroxaban',
+    'levothyroxine', 'synthroid',
+    'albuterol', 'fluticasone', 'montelukast',
+    'omeprazole', 'pantoprazole', 'famotidine',
+    'sertraline', 'fluoxetine', 'escitalopram', 'paroxetine', 'citalopram',
+    'tamoxifen', 'anastrozole', 'letrozole', 'exemestane'
+  ];
+  
+  for (const med of commonMeds) {
+    const regex = new RegExp(`\\b${med}\\b`, 'i');
+    if (regex.test(cleanText)) {
+      medications.push(med.charAt(0).toUpperCase() + med.slice(1));
+    }
+  }
+  
+  if (medications.length > 0) {
+    extractedInfo.medicalHistory.medications = medications.join(', ');
+  }
+  
+  // Extract allergies
+  if (/no known (drug |medication |)allergies|NKDA|NKA/i.test(cleanText)) {
     extractedInfo.medicalHistory.allergies = 'No known drug allergies';
+  } else if (/allergic to|allergies include|allergies:|medication allergies/i.test(cleanText)) {
+    // Try to extract specific allergies
+    const allergyMatch = cleanText.match(/allergic to|allergies include|allergies:([^.;:]+)/i);
+    if (allergyMatch && allergyMatch[1]) {
+      extractedInfo.medicalHistory.allergies = allergyMatch[1].trim();
+    } else {
+      // Generic statement
+      extractedInfo.medicalHistory.allergies = 'Patient has allergies (details not specified)';
+    }
   }
   
-  // Extract demographics
-  const ageMatch = text.match(/(\d+)[\s-]*year[\s-]*old/i);
-  if (ageMatch) {
-    extractedInfo.demographics.age = ageMatch[1];
+  // Extract demographics - age with improved patterns
+  const agePatterns = [
+    /\b(\d{1,3})[\s-]*year[\s-]*old\b/i,
+    /\bage:?\s*(\d{1,3})\b/i,
+    /\bage\s+of\s+(\d{1,3})\b/i,
+    /\b(\d{1,3})[\s-]*y\/o\b/i
+  ];
+  
+  for (const pattern of agePatterns) {
+    const match = cleanText.match(pattern);
+    if (match && match[1]) {
+      extractedInfo.demographics.age = match[1];
+      break;
+    }
   }
   
-  if (text.match(/\b(female|woman|girl)\b/i)) {
+  // Extract gender with improved patterns
+  if (/\b(female|woman|girl|F)\b/i.test(cleanText)) {
     extractedInfo.demographics.gender = 'Female';
-  } else if (text.match(/\b(male|man|boy)\b/i)) {
+  } else if (/\b(male|man|boy|M)\b/i.test(cleanText)) {
     extractedInfo.demographics.gender = 'Male';
   }
   

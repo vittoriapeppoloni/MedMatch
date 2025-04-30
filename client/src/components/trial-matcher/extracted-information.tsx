@@ -79,6 +79,12 @@ export default function ExtractedInformation({ data }: ExtractedInfoProps) {
                 {data.medicalHistory?.comorbidities || "Hypertension (controlled), Type 2 Diabetes (HbA1c 6.8%)"}
               </p>
             </div>
+            <div className="mb-2">
+              <span className="text-xs font-medium text-neutral-500">Medications:</span>
+              <p className="text-sm font-medium text-neutral-700">
+                {data.medicalHistory?.medications || "Lisinopril, Metformin"}
+              </p>
+            </div>
             <div>
               <span className="text-xs font-medium text-neutral-500">Allergies:</span>
               <p className="text-sm font-medium text-neutral-700">
