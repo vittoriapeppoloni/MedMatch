@@ -410,7 +410,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 // Comprehensive trial matching algorithm optimized for lung cancer trials
-
 // Helper functions for safe string comparison
 function safeLowerIncludes(text: string | null | undefined, searchStr: string | null | undefined): boolean {
   if (!text || !searchStr) return false;
@@ -734,10 +733,17 @@ function addLungCancerTrialsIfNeeded(trials: any[]) {
 
 // NLP helper for extracting medical information from text
 function extractMedicalInfo(text: string) {
+  const emptyResult = {
+    diagnosis: { primaryDiagnosis: '', subtype: '', diagnosisDate: '', stage: '' },
+    treatments: { pastTreatments: '', currentTreatment: '', plannedTreatment: '' },
+    medicalHistory: { comorbidities: '', allergies: '', medications: '' },
+    demographics: { age: '', gender: '' }
+  };
+  
   try {
     if (!text || typeof text !== 'string') {
       console.error("Invalid text input to extractMedicalInfo");
-      return {};
+      return emptyResult;
     }
     
     // Clean and normalize the text
@@ -1070,11 +1076,6 @@ function extractMedicalInfo(text: string) {
   return extractedInfo;
   } catch (error) {
     console.error("Error in extractMedicalInfo:", error);
-    return {
-      diagnosis: { primaryDiagnosis: '', subtype: '', diagnosisDate: '', stage: '' },
-      treatments: { pastTreatments: '', currentTreatment: '', plannedTreatment: '' },
-      medicalHistory: { comorbidities: '', allergies: '', medications: '' },
-      demographics: { age: '', gender: '' }
-    };
+    return emptyResult;
   }
 }

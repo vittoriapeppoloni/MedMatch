@@ -410,24 +410,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 // Comprehensive trial matching algorithm optimized for lung cancer trials
-
-// Helper functions for safe string comparison
-function safeLowerIncludes(text: string | null | undefined, searchStr: string | null | undefined): boolean {
-  if (!text || !searchStr) return false;
-  return text.toLowerCase().includes(searchStr.toLowerCase());
-}
-
-function safeToLowerCase(text: string | null | undefined): string {
-  if (!text) return '';
-  return text.toLowerCase();
-}
-
 function matchPatientToTrials(extractedInfo: any, trials: any[]) {
   try {
-    if (!extractedInfo || !trials || !Array.isArray(trials)) {
-      console.error("Invalid inputs to matchPatientToTrials");
-      return [];
-    }
     const matchResults = [];
     console.log("Patient info for matching:", JSON.stringify(extractedInfo, null, 2));
     
