@@ -24,9 +24,6 @@ import {
 } from "@/components/ui/select";
 
 const formSchema = z.object({
-  patientId: z.number().positive(),
-  dob: z.string().optional(),
-  gender: z.string().optional(),
   medicalText: z.string().min(10, "Medical text is required").max(10000),
 });
 
@@ -42,9 +39,6 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      patientId: 1, // Default to first patient
-      dob: "1975-06-15",
-      gender: "female",
       medicalText: "57-year-old female with Stage 2 (T2N0M0) HR+/HER2- breast cancer diagnosed in October 2023. Patient underwent lumpectomy with negative margins and sentinel lymph node biopsy with 0/3 nodes positive. Currently completing radiation therapy and scheduled to start hormone therapy next month. Medical history includes hypertension (controlled with lisinopril) and type 2 diabetes (HbA1c 6.8%). No known drug allergies.",
     },
   });
@@ -78,7 +72,7 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
   
   const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
     onSubmit({
-      patientId: values.patientId,
+      patientId: 1, // Using a default patient ID since we removed the field
       medicalText: values.medicalText,
     });
   };
@@ -96,75 +90,7 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleFormSubmit)}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <FormField
-              control={form.control}
-              name="patientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-medium text-neutral-600">Patient ID</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center">
-                      <span className="mr-1 text-neutral-500">PT-2023</span>
-                      <Input 
-                        {...field}
-                        type="number"
-                        min="1"
-                        className="w-24"
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="dob"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-medium text-neutral-600">Date of Birth</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="date" 
-                      {...field} 
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="gender"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-medium text-neutral-600">Gender</FormLabel>
-                  <Select
-                    defaultValue={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+
           
           <div className="mb-4">
             <FormLabel className="block text-sm font-medium text-neutral-600 mb-1">Upload Medical Documentation</FormLabel>
