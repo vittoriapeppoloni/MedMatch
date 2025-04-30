@@ -152,7 +152,10 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
               <Button
                 type="button"
                 className="mt-3"
-                onClick={() => document.getElementById('fileUpload')?.click()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('fileUpload')?.click();
+                }}
               >
                 Browse Files
               </Button>

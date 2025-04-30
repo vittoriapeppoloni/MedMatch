@@ -120,8 +120,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Patient ID and medical text are required' });
       }
       
-      // Extract medical information using NLP
+      console.log("Processing medical text:", text.substring(0, 100) + "..."); // Log a preview
+      
+      // Extract medical information using our custom NLP function
       const extractedInfo = extractMedicalInfo(text);
+      
+      console.log("Extracted information:", JSON.stringify(extractedInfo, null, 2));
       
       // Save the medical document
       const medicalDocument = await storage.createMedicalDocument({
@@ -161,6 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         matchedTrials: matchResults
       });
     } catch (error) {
+      console.error("Error processing medical text:", error);
       handleError(res, error);
     }
   });
@@ -533,13 +538,39 @@ function extractMedicalInfo(text: string) {
     'albuterol', 'fluticasone', 'montelukast',
     'omeprazole', 'pantoprazole', 'famotidine',
     'sertraline', 'fluoxetine', 'escitalopram', 'paroxetine', 'citalopram',
-    'tamoxifen', 'anastrozole', 'letrozole', 'exemestane'
+    'tamoxifen', 'anastrozole', 'letrozole', 'exemestane',
+    'hormone therapy', 'radiation therapy'
   ];
   
   for (const med of commonMeds) {
     const regex = new RegExp(`\\b${med}\\b`, 'i');
     if (regex.test(cleanText)) {
-      medications.push(med.charAt(0).toUpperCase() + med.slice(1));
+      // Capitalize first letter of each word
+      const formattedMed = med.replace(/\b\w/g, l => l.toUpperCase());
+      medications.push(formattedMed);
+    }
+  }
+  
+  // Check for medication phrases like "controlled with X" or "treated with Y"
+  const medicationPhrases = [
+    /controlled with\s+([a-zA-Z0-9\s]+?)(?:\s+and\s+|\s*,\s*|\s*\.|$)/gi,
+    /treated with\s+([a-zA-Z0-9\s]+?)(?:\s+and\s+|\s*,\s*|\s*\.|$)/gi,
+    /taking\s+([a-zA-Z0-9\s]+?)(?:\s+and\s+|\s*,\s*|\s*\.|$)/gi,
+    /prescribed\s+([a-zA-Z0-9\s]+?)(?:\s+and\s+|\s*,\s*|\s*\.|$)/gi
+  ];
+
+  for (const phraseRegex of medicationPhrases) {
+    let match;
+    while ((match = phraseRegex.exec(cleanText)) !== null) {
+      if (match[1] && match[1].trim()) {
+        const med = match[1].trim();
+        // Avoid adding general phrases or long sentences
+        if (med.split(/\s+/).length <= 3 && !medications.includes(med)) {
+          // Capitalize first letter of each word
+          const formattedMed = med.replace(/\b\w/g, l => l.toUpperCase());
+          medications.push(formattedMed);
+        }
+      }
     }
   }
   
