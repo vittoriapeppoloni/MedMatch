@@ -104,7 +104,16 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
                 <FormItem>
                   <FormLabel className="text-sm font-medium text-neutral-600">Patient ID</FormLabel>
                   <FormControl>
-                    <Input {...field} value={`PT-2023${field.value}`} disabled />
+                    <div className="flex items-center">
+                      <span className="mr-1 text-neutral-500">PT-2023</span>
+                      <Input 
+                        {...field}
+                        type="number"
+                        min="1"
+                        className="w-24"
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -118,7 +127,12 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
                 <FormItem>
                   <FormLabel className="text-sm font-medium text-neutral-600">Date of Birth</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input 
+                      type="date" 
+                      {...field} 
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
