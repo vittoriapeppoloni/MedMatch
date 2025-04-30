@@ -33,7 +33,7 @@ interface MedicalEntity {
 /**
  * Extract medical entities from text
  */
-function extractEntities(text: string): MedicalEntity[] {
+export function extractEntities(text: string): MedicalEntity[] {
   const entities: MedicalEntity[] = [];
   const tokens = tokenizer.tokenize(text.toLowerCase());
   const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
