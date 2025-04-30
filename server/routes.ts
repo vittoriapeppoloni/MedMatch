@@ -140,48 +140,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extractedInfo.demographics.gender;
         
       if (!hasExtractedInfo) {
-        console.log("No information was extracted, checking for basic Italian/Spanish text patterns");
+        console.log("No information was extracted, checking for Italian/Spanish/multilingual text patterns");
         
-        // Add support for Italian and other languages
+        // Improved support for Italian and other languages
         // Look for common patterns in medical text
         if (text.includes("paziente") || text.includes("diagnosi") || 
             text.includes("età") || text.includes("anni") || text.includes("altezza") || 
             text.includes("peso") || text.includes("BMI")) {
           
-          // Extract date information
+          // Extract common cancer information in Italian
+          const cancerPattern = /(?:carcinoma|adenocarcinoma|cancro|tumore|neoplasia)/i;
+          const cancerMatch = text.match(cancerPattern);
+          if (cancerMatch) {
+            // Look for cancer stage in TNM format
+            const tnmPattern = /(T\d+[a-z]?N\d+[a-z]?M\d+[a-z]?)/i;
+            const tnmMatch = text.match(tnmPattern);
+            if (tnmMatch) {
+              const tnm = tnmMatch[1].toUpperCase();
+              extractedInfo.diagnosis.primaryDiagnosis = `Cancro ${tnm}`;
+              
+              // If we find TNM, try to extract stage information
+              const stagePattern = /(?:stadio|stage)\s*(I{1,3}V?|IV|1|2|3|4)/i;
+              const stageMatch = text.match(stagePattern);
+              if (stageMatch) {
+                extractedInfo.diagnosis.stage = stageMatch[1].toUpperCase();
+              }
+            } else {
+              extractedInfo.diagnosis.primaryDiagnosis = "Cancer";
+            }
+            
+            // Try to find cancer location
+            const organPattern = /(?:polmonare|lung|mammella|breast|colon|prostata|prostate|fegato|liver)/i;
+            const organMatch = text.match(organPattern);
+            if (organMatch) {
+              const organ = organMatch[0].toLowerCase();
+              if (organ === "polmonare" || organ === "lung") {
+                extractedInfo.diagnosis.primaryDiagnosis = "Lung Cancer";
+              } else if (organ === "mammella" || organ === "breast") {
+                extractedInfo.diagnosis.primaryDiagnosis = "Breast Cancer";
+              } else if (organ === "colon") {
+                extractedInfo.diagnosis.primaryDiagnosis = "Colon Cancer";
+              } else if (organ === "prostata" || organ === "prostate") {
+                extractedInfo.diagnosis.primaryDiagnosis = "Prostate Cancer";
+              } else if (organ === "fegato" || organ === "liver") {
+                extractedInfo.diagnosis.primaryDiagnosis = "Liver Cancer";
+              }
+            }
+          }
+          
+          // Extract date information - improved pattern
           const datePattern = /\b(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})\b/;
           const dateMatch = text.match(datePattern);
           if (dateMatch) {
             extractedInfo.diagnosis.diagnosisDate = dateMatch[0];
           }
           
-          // Extract age information
-          const agePattern = /\b(\d{1,3})\s*(?:anni|años|years|age|age:|età:?)\b/i;
+          // Extract age information - more patterns
+          const agePattern = /\b(?:paziente\s+di\s+)?(\d{1,3})\s*(?:anni|años|years|age|age:|età:?)\b/i;
           const ageMatch = text.match(agePattern);
           if (ageMatch) {
             extractedInfo.demographics.age = ageMatch[1];
           }
           
-          // Extract height/weight information
-          const heightPattern = /\baltezza\s*(?:\(cm\))?\s*:\s*(\d{2,3})/i;
+          // Extract gender information - more patterns
+          if (text.match(/\b(?:donna|female|F|paziente\s+femminile)\b/i)) {
+            extractedInfo.demographics.gender = "Female";
+          } else if (text.match(/\b(?:uomo|male|M|paziente\s+maschile)\b/i)) {
+            extractedInfo.demographics.gender = "Male";
+          }
+          
+          // Extract height/weight information - improved patterns
+          const heightPattern = /\baltezza\s*(?:\(cm\))?\s*:?\s*(\d{2,3})/i;
           const heightMatch = text.match(heightPattern);
-          if (heightMatch) {
-            extractedInfo.medicalHistory.comorbidities = `Height: ${heightMatch[1]} cm`;
-          }
           
-          const weightPattern = /\bpeso\s*(?:\(kg\))?\s*:\s*(\d{2,3})/i;
+          const weightPattern = /\bpeso\s*(?:\(kg\))?\s*:?\s*(\d{2,3})/i;
           const weightMatch = text.match(weightPattern);
-          if (weightMatch && heightMatch) {
-            extractedInfo.medicalHistory.comorbidities = `Height: ${heightMatch[1]} cm, Weight: ${weightMatch[1]} kg`;
+          
+          // Extract BMI information - improved pattern
+          const bmiPattern = /\bBMI\s*:?\s*(\d+[,\.]\d+)/i;
+          const bmiMatch = text.match(bmiPattern);
+          
+          // Combine physical measurements
+          let physicalInfo = [];
+          if (heightMatch) {
+            physicalInfo.push(`Height: ${heightMatch[1]} cm`);
+          }
+          if (weightMatch) {
+            physicalInfo.push(`Weight: ${weightMatch[1]} kg`);
+          }
+          if (bmiMatch) {
+            const bmiValue = bmiMatch[1].replace(',', '.');
+            physicalInfo.push(`BMI: ${bmiValue}`);
           }
           
-          // Extract BMI information
-          const bmiPattern = /\bBMI\s*:\s*(\d+[\.,]\d+)/i;
-          const bmiMatch = text.match(bmiPattern);
-          if (bmiMatch && extractedInfo.medicalHistory.comorbidities) {
-            extractedInfo.medicalHistory.comorbidities += `, BMI: ${bmiMatch[1]}`;
-          } else if (bmiMatch) {
-            extractedInfo.medicalHistory.comorbidities = `BMI: ${bmiMatch[1]}`;
+          if (physicalInfo.length > 0) {
+            extractedInfo.medicalHistory.comorbidities = physicalInfo.join(', ');
+          }
+          
+          // Extract treatment information
+          if (text.match(/\b(?:chemio|chemo|immunoter|radiot|radiotherapy|surgery)\b/i)) {
+            extractedInfo.treatments.currentTreatment = "Chemotherapy/Immunotherapy";
+          }
+          
+          // Extract trial or study information
+          if (text.match(/\b(?:studio sperimentale|trial|studio clinico|fase)\b/i)) {
+            extractedInfo.treatments.plannedTreatment = "Clinical Trial";
           }
         }
       }
