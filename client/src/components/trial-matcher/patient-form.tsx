@@ -59,13 +59,13 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
         }
       };
       
-      // For text files and compatibility
-      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-        reader.readAsText(file);
-      } else {
-        // For other file types, we would need server-side processing
-        // For now, show a placeholder message
-        form.setValue('medicalText', `This is a placeholder for the contents of ${file.name}. In a production environment, we would extract the text from this document using server-side processing. For testing, please paste your medical text directly in the box below.`);
+      // For all file types, attempt to read as text - this works for TXT files
+      // and sometimes for PDF/DOC files if they're plain text-based
+      reader.readAsText(file);
+      
+      // Tell the user we're trying to extract text
+      if (file.type !== 'text/plain' && !file.name.endsWith('.txt')) {
+        alert("Note: For non-text files like PDF and DOC, the text extraction may be limited. If you don't see proper content, please copy and paste the text directly into the text box.");
       }
     }
   };
@@ -124,12 +124,12 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
                     }
                   };
                   
-                  // For text files and compatibility
-                  if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-                    reader.readAsText(file);
-                  } else {
-                    // For other file types, show a placeholder
-                    form.setValue('medicalText', `This is a placeholder for the contents of ${file.name}. In a production environment, we would extract the text from this document using server-side processing. For testing, please paste your medical text directly in the box below.`);
+                  // For all file types, attempt to read as text
+                  reader.readAsText(file);
+                  
+                  // Tell the user we're trying to extract text
+                  if (file.type !== 'text/plain' && !file.name.endsWith('.txt')) {
+                    alert("Note: For non-text files like PDF and DOC, the text extraction may be limited. If you don't see proper content, please copy and paste the text directly into the text box.");
                   }
                 }
               }}

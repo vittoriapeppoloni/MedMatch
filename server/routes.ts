@@ -125,6 +125,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract medical information using our custom NLP function
       const extractedInfo = extractMedicalInfo(text);
       
+      // Check if any information was extracted
+      const hasExtractedInfo = 
+        extractedInfo.diagnosis.primaryDiagnosis ||
+        extractedInfo.diagnosis.subtype ||
+        extractedInfo.diagnosis.diagnosisDate ||
+        extractedInfo.treatments.pastTreatments ||
+        extractedInfo.treatments.currentTreatment ||
+        extractedInfo.treatments.plannedTreatment ||
+        extractedInfo.medicalHistory.comorbidities ||
+        extractedInfo.medicalHistory.medications ||
+        extractedInfo.medicalHistory.allergies ||
+        extractedInfo.demographics.age ||
+        extractedInfo.demographics.gender;
+        
+      if (!hasExtractedInfo) {
+        console.log("No information was extracted, checking for basic Italian/Spanish text patterns");
+        
+        // Add support for Italian and other languages
+        // Look for common patterns in medical text
+        if (text.includes("paziente") || text.includes("diagnosi") || 
+            text.includes("età") || text.includes("anni") || text.includes("altezza") || 
+            text.includes("peso") || text.includes("BMI")) {
+          
+          // Extract date information
+          const datePattern = /\b(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})\b/;
+          const dateMatch = text.match(datePattern);
+          if (dateMatch) {
+            extractedInfo.diagnosis.diagnosisDate = dateMatch[0];
+          }
+          
+          // Extract age information
+          const agePattern = /\b(\d{1,3})\s*(?:anni|años|years|age|age:|età:?)\b/i;
+          const ageMatch = text.match(agePattern);
+          if (ageMatch) {
+            extractedInfo.demographics.age = ageMatch[1];
+          }
+          
+          // Extract height/weight information
+          const heightPattern = /\baltezza\s*(?:\(cm\))?\s*:\s*(\d{2,3})/i;
+          const heightMatch = text.match(heightPattern);
+          if (heightMatch) {
+            extractedInfo.medicalHistory.comorbidities = `Height: ${heightMatch[1]} cm`;
+          }
+          
+          const weightPattern = /\bpeso\s*(?:\(kg\))?\s*:\s*(\d{2,3})/i;
+          const weightMatch = text.match(weightPattern);
+          if (weightMatch && heightMatch) {
+            extractedInfo.medicalHistory.comorbidities = `Height: ${heightMatch[1]} cm, Weight: ${weightMatch[1]} kg`;
+          }
+          
+          // Extract BMI information
+          const bmiPattern = /\bBMI\s*:\s*(\d+[\.,]\d+)/i;
+          const bmiMatch = text.match(bmiPattern);
+          if (bmiMatch && extractedInfo.medicalHistory.comorbidities) {
+            extractedInfo.medicalHistory.comorbidities += `, BMI: ${bmiMatch[1]}`;
+          } else if (bmiMatch) {
+            extractedInfo.medicalHistory.comorbidities = `BMI: ${bmiMatch[1]}`;
+          }
+        }
+      }
+      
       console.log("Extracted information:", JSON.stringify(extractedInfo, null, 2));
       
       // Save the medical document
