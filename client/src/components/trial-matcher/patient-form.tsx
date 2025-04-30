@@ -67,9 +67,14 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
               } else {
                 // Message if extraction fails
                 form.setValue('medicalText', 
-                `PDF extraction in this version is limited. Please copy and paste the text from your PDF here manually.
+                `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
 
-You can open your PDF in another application and copy its text content into this field.`);
+This happens because:
+1. The PDF contains image-based content instead of text
+2. The PDF has security restrictions
+3. The PDF structure is not standard
+
+Please open your PDF in another application (like Adobe Reader), select the text content, and paste it directly into this field. Or try uploading a plain text (.txt) file instead.`);
               }
             }
           };
@@ -150,9 +155,14 @@ You can open your PDF in another application and copy its text content into this
                           } else {
                             // Message if extraction fails
                             form.setValue('medicalText', 
-                            `PDF extraction in this version is limited. Please copy and paste the text from your PDF here manually.
+                            `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
 
-You can open your PDF in another application and copy its text content into this field.`);
+This happens because:
+1. The PDF contains image-based content instead of text
+2. The PDF has security restrictions
+3. The PDF structure is not standard
+
+Please open your PDF in another application (like Adobe Reader), select the text content, and paste it directly into this field. Or try uploading a plain text (.txt) file instead.`);
                           }
                         }
                       };
