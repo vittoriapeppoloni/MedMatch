@@ -428,7 +428,10 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
       
       // Match lung cancer trials
       if ((diagnosisLower.includes('lung') || diagnosisLower.includes('polmon')) && 
-          trial.eligibilityCriteria?.inclusions?.toLowerCase().includes('lung')) {
+          trial.eligibilityCriteria?.inclusions && 
+          typeof trial.eligibilityCriteria.inclusions === 'string' && 
+          trial.eligibilityCriteria.inclusions.toLowerCase().includes('lung')) {
+        
         score += 25;
         matchReasons.push({ 
           factor: 'Lung Cancer', 
@@ -438,7 +441,10 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
       
       // Match adenocarcinoma trials
       if (diagnosisLower.includes('adenocarcinoma') && 
-          trial.eligibilityCriteria?.inclusions?.toLowerCase().includes('adenocarcinoma')) {
+          trial.eligibilityCriteria?.inclusions && 
+          typeof trial.eligibilityCriteria.inclusions === 'string' && 
+          trial.eligibilityCriteria.inclusions.toLowerCase().includes('adenocarcinoma')) {
+        
         score += 20;
         matchReasons.push({ 
           factor: 'Adenocarcinoma', 
@@ -450,7 +456,10 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
     // Check for biomarker matches (KRAS G12C)
     if (extractedInfo.diagnosis?.subtype) {
       if (extractedInfo.diagnosis.subtype.includes('KRAS G12C') && 
-          trial.eligibilityCriteria?.inclusions?.includes('KRAS G12C')) {
+          trial.eligibilityCriteria?.inclusions && 
+          typeof trial.eligibilityCriteria.inclusions === 'string' &&
+          trial.eligibilityCriteria.inclusions.includes('KRAS G12C')) {
+        
         score += 30;
         matchReasons.push({ 
           factor: 'KRAS G12C Mutation', 
@@ -464,14 +473,20 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
         const pdl1Value = parseInt(pdl1Match[1]);
         
         if (pdl1Value >= 1 && pdl1Value < 50 && 
-            trial.eligibilityCriteria?.inclusions?.includes('PD-L1 1-49%')) {
+            trial.eligibilityCriteria?.inclusions && 
+            typeof trial.eligibilityCriteria.inclusions === 'string' &&
+            trial.eligibilityCriteria.inclusions.includes('PD-L1 1-49%')) {
+          
           score += 15;
           matchReasons.push({ 
             factor: 'PD-L1 Expression', 
             description: `PD-L1 expression of ${pdl1Value}% matches trial requirements` 
           });
         } else if (pdl1Value >= 50 && 
-                   trial.eligibilityCriteria?.inclusions?.includes('PD-L1 ≥50%')) {
+                   trial.eligibilityCriteria?.inclusions && 
+                   typeof trial.eligibilityCriteria.inclusions === 'string' &&
+                   trial.eligibilityCriteria.inclusions.includes('PD-L1 ≥50%')) {
+          
           score += 20;
           matchReasons.push({ 
             factor: 'High PD-L1 Expression', 
@@ -486,14 +501,20 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
       const patientStage = extractedInfo.diagnosis.stage.toUpperCase();
       
       if (patientStage === 'IV' && 
-          trial.eligibilityCriteria?.inclusions?.includes('Stage IV')) {
+          trial.eligibilityCriteria?.inclusions && 
+          typeof trial.eligibilityCriteria.inclusions === 'string' &&
+          trial.eligibilityCriteria.inclusions.includes('Stage IV')) {
+        
         score += 20;
         matchReasons.push({ 
           factor: 'Metastatic Disease', 
           description: 'Stage IV cancer matches trial focused on metastatic disease' 
         });
       } else if (patientStage === 'III' && 
-                trial.eligibilityCriteria?.inclusions?.includes('Stage III')) {
+                trial.eligibilityCriteria?.inclusions && 
+                typeof trial.eligibilityCriteria.inclusions === 'string' &&
+                trial.eligibilityCriteria.inclusions.includes('Stage III')) {
+        
         score += 20;
         matchReasons.push({ 
           factor: 'Locally Advanced Disease', 
@@ -522,7 +543,11 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
     if (extractedInfo.demographics?.age) {
       const age = parseInt(extractedInfo.demographics.age);
       
-      if (trial.eligibilityCriteria?.inclusions?.includes('Age ≥18') && age >= 18) {
+      if (trial.eligibilityCriteria?.inclusions && 
+          typeof trial.eligibilityCriteria.inclusions === 'string' &&
+          trial.eligibilityCriteria.inclusions.includes('Age ≥18') && 
+          age >= 18) {
+        
         score += 5;
         matchReasons.push({ 
           factor: 'Age Eligibility', 
@@ -531,7 +556,11 @@ function matchPatientToTrials(extractedInfo: any, trials: any[]) {
       }
       
       // Age as limiting factor
-      if (trial.eligibilityCriteria?.limitations?.includes('Age ≤75') && age > 75) {
+      if (trial.eligibilityCriteria?.limitations && 
+          typeof trial.eligibilityCriteria.limitations === 'string' &&
+          trial.eligibilityCriteria.limitations.includes('Age ≤75') && 
+          age > 75) {
+        
         score -= 15;
         limitingFactors.push({ 
           factor: 'Age Limit', 
