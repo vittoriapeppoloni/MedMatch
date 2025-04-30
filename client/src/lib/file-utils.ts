@@ -1,8 +1,11 @@
 import * as pdfjs from 'pdfjs-dist';
 
-// Set up the PDF.js worker
-// Note: In a real production environment, you would want to use a more robust worker setup
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// Set up PDF.js to use a fake worker to avoid external dependencies
+// This is a workaround for simplicity and should be replaced with a proper worker in production
+pdfjs.GlobalWorkerOptions.workerSrc = '';  // Use internal fake worker
+
+// Print out the version to help debug
+console.log("Using PDF.js version:", pdfjs.version);
 
 /**
  * Extracts text from a PDF file

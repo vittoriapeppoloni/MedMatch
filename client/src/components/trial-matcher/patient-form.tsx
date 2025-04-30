@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,6 +44,8 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
     },
   });
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -53,15 +55,40 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
       form.setValue('medicalText', 'Processing file, please wait...');
       
       try {
-        // Use our utility function to read text from various file types
-        const fileContent = await readFileAsText(file);
-        
-        // Set the file contents to the medical text field
-        form.setValue('medicalText', fileContent);
-        
-        // If the content is too small, it might not have been parsed correctly
-        if (fileContent.length < 100 && file.type !== 'text/plain') {
-          console.warn('File content might not have been parsed correctly');
+        // Check if it's a PDF file
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          // Try our PDF extraction utility first
+          try {
+            const fileContent = await readFileAsText(file);
+            form.setValue('medicalText', fileContent);
+            
+            // If the content is too small, it might not have been parsed correctly
+            if (fileContent.length < 100) {
+              console.warn('PDF content might not have been parsed correctly, using fallback');
+              form.setValue('medicalText', 
+                `${fileContent}\n\n(PDF extraction might be incomplete. If you don't see all the text, please copy and paste it manually.)`);
+            }
+          } catch (pdfError) {
+            console.error('Error with PDF extraction:', pdfError);
+            // Simple fallback for text-based PDFs
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              if (event.target?.result) {
+                const result = event.target.result.toString();
+                form.setValue('medicalText', result);
+              }
+            };
+            reader.readAsText(file);
+          }
+        } else {
+          // For non-PDF files, use standard text extraction
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              form.setValue('medicalText', event.target.result.toString());
+            }
+          };
+          reader.readAsText(file);
         }
       } catch (error) {
         console.error('Error reading file:', error);
@@ -117,15 +144,40 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
                   form.setValue('medicalText', 'Processing file, please wait...');
                   
                   try {
-                    // Use our utility function to read text from various file types
-                    const fileContent = await readFileAsText(file);
-                    
-                    // Set the file contents to the medical text field
-                    form.setValue('medicalText', fileContent);
-                    
-                    // If the content is too small, it might not have been parsed correctly
-                    if (fileContent.length < 100 && file.type !== 'text/plain') {
-                      console.warn('File content might not have been parsed correctly');
+                    // Check if it's a PDF file
+                    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                      // Try our PDF extraction utility first
+                      try {
+                        const fileContent = await readFileAsText(file);
+                        form.setValue('medicalText', fileContent);
+                        
+                        // If the content is too small, it might not have been parsed correctly
+                        if (fileContent.length < 100) {
+                          console.warn('PDF content might not have been parsed correctly, using fallback');
+                          form.setValue('medicalText', 
+                            `${fileContent}\n\n(PDF extraction might be incomplete. If you don't see all the text, please copy and paste it manually.)`);
+                        }
+                      } catch (pdfError) {
+                        console.error('Error with PDF extraction:', pdfError);
+                        // Simple fallback for text-based PDFs
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          if (event.target?.result) {
+                            const result = event.target.result.toString();
+                            form.setValue('medicalText', result);
+                          }
+                        };
+                        reader.readAsText(file);
+                      }
+                    } else {
+                      // For non-PDF files, use standard text extraction
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          form.setValue('medicalText', event.target.result.toString());
+                        }
+                      };
+                      reader.readAsText(file);
                     }
                   } catch (error) {
                     console.error('Error reading file:', error);
