@@ -64,12 +64,26 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
             // Use our PDF extraction utility with proper text extraction
             const extractedText = await readFileAsText(file);
             
-            // Check if we got valid text (not just header garbage)
+            // Check for timeout message or raw PDF data
+            const isTimeout = extractedText.includes('too long to process') || 
+                             extractedText.includes('timed out');
+            
             const isRawPDF = extractedText.startsWith('%PDF') || 
                             extractedText.includes('obj') ||
                             extractedText.includes('endobj');
             
-            if (isRawPDF) {
+            if (isTimeout) {
+              // If we got a timeout message, show a better error message
+              form.setValue('medicalText', 
+              `Your PDF is too complex for our browser-based extraction tool.
+
+Please try:
+1. Copy and paste the text directly from your PDF reader application
+2. Try a smaller PDF file (fewer pages)
+3. Use a plain text (.txt) file instead
+
+This limitation is due to browser restrictions when processing larger files.`);
+            } else if (isRawPDF) {
               // If we're getting raw PDF data, show a helpful error message
               form.setValue('medicalText', 
               `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
@@ -165,12 +179,26 @@ Please open your PDF in another application (like Adobe Reader), select the text
                         // Use our PDF extraction utility with proper text extraction
                         const extractedText = await readFileAsText(file);
                         
-                        // Check if we got valid text (not just header garbage)
+                        // Check for timeout message or raw PDF data
+                        const isTimeout = extractedText.includes('too long to process') || 
+                                         extractedText.includes('timed out');
+                        
                         const isRawPDF = extractedText.startsWith('%PDF') || 
                                         extractedText.includes('obj') ||
                                         extractedText.includes('endobj');
                         
-                        if (isRawPDF) {
+                        if (isTimeout) {
+                          // If we got a timeout message, show a better error message
+                          form.setValue('medicalText', 
+                          `Your PDF is too complex for our browser-based extraction tool.
+
+Please try:
+1. Copy and paste the text directly from your PDF reader application
+2. Try a smaller PDF file (fewer pages)
+3. Use a plain text (.txt) file instead
+
+This limitation is due to browser restrictions when processing larger files.`);
+                        } else if (isRawPDF) {
                           // If we're getting raw PDF data, show a helpful error message
                           form.setValue('medicalText', 
                           `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.

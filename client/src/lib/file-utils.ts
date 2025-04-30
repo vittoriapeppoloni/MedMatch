@@ -41,8 +41,9 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     console.error('Error extracting text from PDF:', error);
     const errorMessage = error.message || 'Unknown error';
     
+    // Return a more specific error message for timeout
     if (errorMessage.includes('timed out')) {
-      return `The PDF is taking too long to process. It may be too large or complex. Please copy and paste the text directly from your PDF reader.`;
+      return `Error: The PDF extraction timed out. Your PDF is too complex for our browser-based tool. Please copy and paste the text directly from your PDF reader.`;
     }
     
     return `Error extracting text from PDF: ${errorMessage}. Please copy and paste the text manually.`;
