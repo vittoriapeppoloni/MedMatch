@@ -55,19 +55,21 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
       form.setValue('medicalText', 'Processing file, please wait...');
       
       try {
-        // For PDF files, use a simplified approach since we're having issues with PDF.js
+        // For PDF files, use the PDF.js extraction logic
         if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          // Simple fallback for text-based PDFs
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            if (event.target?.result) {
-              const result = event.target.result.toString();
-              if (result.length > 50) {
-                form.setValue('medicalText', result);
-              } else {
-                // Message if extraction fails
-                form.setValue('medicalText', 
-                `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
+          try {
+            // Use our PDF extraction utility with proper text extraction
+            const extractedText = await readFileAsText(file);
+            
+            // Check if we got valid text (not just header garbage)
+            const isRawPDF = extractedText.startsWith('%PDF') || 
+                            extractedText.includes('obj') ||
+                            extractedText.includes('endobj');
+            
+            if (isRawPDF) {
+              // If we're getting raw PDF data, show a helpful error message
+              form.setValue('medicalText', 
+              `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
 
 This happens because:
 1. The PDF contains image-based content instead of text
@@ -75,10 +77,15 @@ This happens because:
 3. The PDF structure is not standard
 
 Please open your PDF in another application (like Adobe Reader), select the text content, and paste it directly into this field. Or try uploading a plain text (.txt) file instead.`);
-              }
+            } else {
+              // Otherwise use the extracted text
+              form.setValue('medicalText', extractedText);
             }
-          };
-          reader.readAsText(file);
+          } catch (error) {
+            console.error('Error extracting PDF text:', error);
+            form.setValue('medicalText', 
+            `Error extracting text from PDF. Please try again or paste the text manually.`);
+          }
         } else {
           // For non-PDF files, use standard text extraction
           const reader = new FileReader();
@@ -143,19 +150,21 @@ Please open your PDF in another application (like Adobe Reader), select the text
                   form.setValue('medicalText', 'Processing file, please wait...');
                   
                   try {
-                    // For PDF files, use a simplified approach since we're having issues with PDF.js
+                    // For PDF files, use the PDF.js extraction logic
                     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-                      // Simple fallback for text-based PDFs
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        if (event.target?.result) {
-                          const result = event.target.result.toString();
-                          if (result.length > 50) {
-                            form.setValue('medicalText', result);
-                          } else {
-                            // Message if extraction fails
-                            form.setValue('medicalText', 
-                            `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
+                      try {
+                        // Use our PDF extraction utility with proper text extraction
+                        const extractedText = await readFileAsText(file);
+                        
+                        // Check if we got valid text (not just header garbage)
+                        const isRawPDF = extractedText.startsWith('%PDF') || 
+                                        extractedText.includes('obj') ||
+                                        extractedText.includes('endobj');
+                        
+                        if (isRawPDF) {
+                          // If we're getting raw PDF data, show a helpful error message
+                          form.setValue('medicalText', 
+                          `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
 
 This happens because:
 1. The PDF contains image-based content instead of text
@@ -163,10 +172,15 @@ This happens because:
 3. The PDF structure is not standard
 
 Please open your PDF in another application (like Adobe Reader), select the text content, and paste it directly into this field. Or try uploading a plain text (.txt) file instead.`);
-                          }
+                        } else {
+                          // Otherwise use the extracted text
+                          form.setValue('medicalText', extractedText);
                         }
-                      };
-                      reader.readAsText(file);
+                      } catch (error) {
+                        console.error('Error extracting PDF text:', error);
+                        form.setValue('medicalText', 
+                        `Error extracting text from PDF. Please try again or paste the text manually.`);
+                      }
                     } else {
                       // For non-PDF files, use standard text extraction
                       const reader = new FileReader();
