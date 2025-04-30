@@ -100,13 +100,13 @@ export default function ExtractedInformation({ data }: ExtractedInfoProps) {
             <div className="mb-2">
               <span className="text-xs font-medium text-neutral-500">Age:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.demographics?.age || "57"} years
+                {data.demographics?.age ? `${data.demographics.age} years` : "Not detected"}
               </p>
             </div>
             <div>
               <span className="text-xs font-medium text-neutral-500">Gender:</span>
               <p className="text-sm font-medium text-neutral-700">
-                {data.demographics?.gender || "Female"}
+                {data.demographics?.gender || "Not detected"}
               </p>
             </div>
           </div>

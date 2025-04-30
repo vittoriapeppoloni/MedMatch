@@ -1,8 +1,19 @@
 import * as pdfjs from 'pdfjs-dist';
 
-// Set up PDF.js to use a fake worker to avoid external dependencies
-// This is a workaround for simplicity and should be replaced with a proper worker in production
-pdfjs.GlobalWorkerOptions.workerSrc = '';  // Use internal fake worker
+// Set a valid URL for the worker - in this case, we're creating a fake one in memory
+const pdfjsWorker = `
+  self.onmessage = function(e) {
+    console.log('Fake worker received message:', e.data);
+    self.postMessage({});
+  };
+`;
+
+// Create a blob from our worker code
+const blob = new Blob([pdfjsWorker], { type: 'application/javascript' });
+const workerUrl = URL.createObjectURL(blob);
+
+// Set the worker source
+pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 // Print out the version to help debug
 console.log("Using PDF.js version:", pdfjs.version);

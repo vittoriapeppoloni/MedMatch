@@ -55,31 +55,25 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
       form.setValue('medicalText', 'Processing file, please wait...');
       
       try {
-        // Check if it's a PDF file
+        // For PDF files, use a simplified approach since we're having issues with PDF.js
         if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          // Try our PDF extraction utility first
-          try {
-            const fileContent = await readFileAsText(file);
-            form.setValue('medicalText', fileContent);
-            
-            // If the content is too small, it might not have been parsed correctly
-            if (fileContent.length < 100) {
-              console.warn('PDF content might not have been parsed correctly, using fallback');
-              form.setValue('medicalText', 
-                `${fileContent}\n\n(PDF extraction might be incomplete. If you don't see all the text, please copy and paste it manually.)`);
-            }
-          } catch (pdfError) {
-            console.error('Error with PDF extraction:', pdfError);
-            // Simple fallback for text-based PDFs
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              if (event.target?.result) {
-                const result = event.target.result.toString();
+          // Simple fallback for text-based PDFs
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              const result = event.target.result.toString();
+              if (result.length > 50) {
                 form.setValue('medicalText', result);
+              } else {
+                // Message if extraction fails
+                form.setValue('medicalText', 
+                `PDF extraction in this version is limited. Please copy and paste the text from your PDF here manually.
+
+You can open your PDF in another application and copy its text content into this field.`);
               }
-            };
-            reader.readAsText(file);
-          }
+            }
+          };
+          reader.readAsText(file);
         } else {
           // For non-PDF files, use standard text extraction
           const reader = new FileReader();
@@ -144,31 +138,25 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
                   form.setValue('medicalText', 'Processing file, please wait...');
                   
                   try {
-                    // Check if it's a PDF file
+                    // For PDF files, use a simplified approach since we're having issues with PDF.js
                     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-                      // Try our PDF extraction utility first
-                      try {
-                        const fileContent = await readFileAsText(file);
-                        form.setValue('medicalText', fileContent);
-                        
-                        // If the content is too small, it might not have been parsed correctly
-                        if (fileContent.length < 100) {
-                          console.warn('PDF content might not have been parsed correctly, using fallback');
-                          form.setValue('medicalText', 
-                            `${fileContent}\n\n(PDF extraction might be incomplete. If you don't see all the text, please copy and paste it manually.)`);
-                        }
-                      } catch (pdfError) {
-                        console.error('Error with PDF extraction:', pdfError);
-                        // Simple fallback for text-based PDFs
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          if (event.target?.result) {
-                            const result = event.target.result.toString();
+                      // Simple fallback for text-based PDFs
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          const result = event.target.result.toString();
+                          if (result.length > 50) {
                             form.setValue('medicalText', result);
+                          } else {
+                            // Message if extraction fails
+                            form.setValue('medicalText', 
+                            `PDF extraction in this version is limited. Please copy and paste the text from your PDF here manually.
+
+You can open your PDF in another application and copy its text content into this field.`);
                           }
-                        };
-                        reader.readAsText(file);
-                      }
+                        }
+                      };
+                      reader.readAsText(file);
                     } else {
                       // For non-PDF files, use standard text extraction
                       const reader = new FileReader();
