@@ -46,6 +46,8 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -53,6 +55,7 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
       
       // Show a loading message while processing the file
       form.setValue('medicalText', 'Processing file, please wait...');
+      setIsProcessingFile(true);
       
       try {
         // For PDF files, use the PDF.js extraction logic
@@ -92,14 +95,19 @@ Please open your PDF in another application (like Adobe Reader), select the text
           reader.onload = (event) => {
             if (event.target?.result) {
               form.setValue('medicalText', event.target.result.toString());
+              setIsProcessingFile(false);
             }
           };
           reader.readAsText(file);
+          return; // Exit early as we're using async reader
         }
       } catch (error) {
         console.error('Error reading file:', error);
         form.setValue('medicalText', 'Error reading file. Please try again or paste the text manually.');
       }
+      
+      // If we reach here, we've completed processing
+      setIsProcessingFile(false);
     }
   };
   
@@ -148,6 +156,7 @@ Please open your PDF in another application (like Adobe Reader), select the text
                   
                   // Show a loading message while processing the file
                   form.setValue('medicalText', 'Processing file, please wait...');
+                  setIsProcessingFile(true);
                   
                   try {
                     // For PDF files, use the PDF.js extraction logic
@@ -187,14 +196,19 @@ Please open your PDF in another application (like Adobe Reader), select the text
                       reader.onload = (event) => {
                         if (event.target?.result) {
                           form.setValue('medicalText', event.target.result.toString());
+                          setIsProcessingFile(false);
                         }
                       };
                       reader.readAsText(file);
+                      return; // Exit early as we're using async reader
                     }
                   } catch (error) {
                     console.error('Error reading file:', error);
                     form.setValue('medicalText', 'Error reading file. Please try again or paste the text manually.');
                   }
+                  
+                  // If we reach here, we've completed processing
+                  setIsProcessingFile(false);
                 }
               }}
             >
@@ -253,8 +267,12 @@ Please open your PDF in another application (like Adobe Reader), select the text
             >
               Clear
             </Button>
-            <Button type="submit" disabled={isProcessing}>
-              {isProcessing ? "Processing..." : "Process & Find Matches"}
+            <Button type="submit" disabled={isProcessing || isProcessingFile}>
+              {isProcessing 
+                ? "Processing..." 
+                : isProcessingFile 
+                  ? "File Processing..." 
+                  : "Process & Find Matches"}
             </Button>
           </div>
         </form>
