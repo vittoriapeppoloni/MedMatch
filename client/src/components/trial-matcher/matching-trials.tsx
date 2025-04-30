@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -10,6 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Check, CheckCircle, AlertCircle, Filter, 
+  Calendar, User, Microscope, Beaker, 
+  Pill, Info, AlertTriangle, BadgeCheck 
+} from 'lucide-react';
 
 interface MatchingTrialsProps {
   trials: any[];
@@ -131,7 +136,7 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
         </div>
         
         <Button variant="link" className="text-primary text-sm">
-          <Icon name="filter" className="mr-1 h-4 w-4" />
+          <Filter className="mr-1 h-4 w-4" />
           More Filters
         </Button>
       </div>
@@ -194,7 +199,7 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
                           key={index}
                           className="inline-flex items-center px-2 py-0.5 bg-success/10 text-success text-xs rounded-full"
                         >
-                          <Icon name="check" className="mr-1 h-3 w-3" />
+                          <Check className="mr-1 h-3 w-3" />
                           {reason.factor}
                         </span>
                       ))}
@@ -204,7 +209,7 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
                           key={index}
                           className="inline-flex items-center px-2 py-0.5 bg-warning/10 text-warning text-xs rounded-full"
                         >
-                          <Icon name="warning" className="mr-1 h-3 w-3" />
+                          <AlertTriangle className="mr-1 h-3 w-3" />
                           {factor.factor}
                         </span>
                       ))}
@@ -282,7 +287,7 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
                           <div className="space-y-2 mt-1">
                             {match.matchReasons?.map((reason: any, index: number) => (
                               <div key={index} className="flex items-start">
-                                <Icon name="check" className="text-success mr-1 h-4 w-4 mt-0.5" />
+                                <CheckCircle className="text-success mr-1 h-4 w-4 mt-0.5" />
                                 <div>
                                   <p className="text-sm font-medium">{reason.factor}</p>
                                   <p className="text-xs text-neutral-500">{reason.description}</p>
