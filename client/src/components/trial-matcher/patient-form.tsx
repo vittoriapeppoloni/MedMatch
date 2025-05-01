@@ -289,7 +289,7 @@ Please open your PDF in another application (like Adobe Reader), select the text
                 </div>
                 <FormControl>
                   <Textarea
-                    placeholder="Enter relevant medical information..."
+                    placeholder="Insert here the text"
                     rows={6}
                     className={isProcessingFile ? "border-primary" : ""}
                     {...field}

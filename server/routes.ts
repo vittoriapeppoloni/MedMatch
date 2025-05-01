@@ -12,6 +12,8 @@ import {
 import natural from "natural";
 // Import the external NLP module only for advanced processing
 import { extractEntities } from "./nlp";
+// Import ClinicalTrials.gov integration
+import { searchClinicalTrials, getClinicalTrialByNctId } from './clinicaltrials';
 
 // Create tokenizer for NLP operations
 const tokenizer = new natural.WordTokenizer();
