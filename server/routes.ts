@@ -131,9 +131,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           if (clinicalTrialsGovTrials && clinicalTrialsGovTrials.length > 0) {
+            // Add IDs to the trials and ensure all required fields have values (not undefined)
+            const trialsWithIds = clinicalTrialsGovTrials.map((trial, index) => ({
+              ...trial,
+              id: index + 1000, // Start from 1000 to avoid conflicts with existing IDs
+              status: trial.status || null,
+              phase: trial.phase || null,
+              facility: trial.facility || null,
+              distance: trial.distance || 0,
+              primaryPurpose: trial.primaryPurpose || null,
+              intervention: trial.intervention || null,
+              summary: trial.summary || null,
+              eligibilityCriteria: trial.eligibilityCriteria || { inclusions: "", exclusions: "" }
+            }));
+            
             // Use the trials from ClinicalTrials.gov
-            console.log(`Found ${clinicalTrialsGovTrials.length} trials from ClinicalTrials.gov for condition: ${condition}`);
-            availableTrials = clinicalTrialsGovTrials;
+            console.log(`Found ${trialsWithIds.length} trials from ClinicalTrials.gov for condition: ${condition}`);
+            availableTrials = trialsWithIds;
           } else {
             // Use more general cancer search if condition is too specific
             console.log(`No trials found for specific condition: ${condition}, falling back to general cancer search`);
@@ -144,7 +158,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             if (cancerTrials && cancerTrials.length > 0) {
-              availableTrials = cancerTrials;
+              // Add IDs to the cancer trials and ensure all required fields are present
+              const cancerTrialsWithIds = cancerTrials.map((trial, index) => ({
+                ...trial,
+                id: index + 2000, // Start from 2000 to avoid conflicts
+                status: trial.status || null,
+                phase: trial.phase || null,
+                facility: trial.facility || null,
+                distance: trial.distance || 0,
+                primaryPurpose: trial.primaryPurpose || null,
+                intervention: trial.intervention || null,
+                summary: trial.summary || null,
+                eligibilityCriteria: trial.eligibilityCriteria || { inclusions: "", exclusions: "" }
+              }));
+              availableTrials = cancerTrialsWithIds;
             }
           }
         }
@@ -494,7 +521,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 // Comprehensive trial matching algorithm optimized for lung cancer trials
 
-// Helper functions for safe string comparison
+// Helper functions for safe string operations
+function safeString(value: any): string {
+  return typeof value === 'string' ? value : '';
+}
+
 function safeLowerIncludes(text: string | null | undefined, searchStr: string | null | undefined): boolean {
   if (!text || !searchStr) return false;
   return text.toLowerCase().includes(searchStr.toLowerCase());

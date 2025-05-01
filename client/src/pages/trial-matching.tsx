@@ -87,7 +87,7 @@ export default function TrialMatching() {
   const displayExtractedInfo = extractedData || (extractedInfo && !infoLoading ? extractedInfo : null);
   const displayTrialMatches = matchedTrials.length > 0 ? 
     matchedTrials.map(match => ({ ...match, trial: match })) : 
-    (trialMatches && !matchesLoading ? trialMatches : []);
+    (trialMatches && !matchesLoading ? trialMatches : [] as any[]);
 
   return (
     <div>
@@ -109,11 +109,11 @@ export default function TrialMatching() {
         <ExtractedInformation data={displayExtractedInfo} />
       )}
 
-      {activeStep >= 2 && displayTrialMatches && displayTrialMatches.length > 0 && (
+      {activeStep >= 2 && Array.isArray(displayTrialMatches) && displayTrialMatches.length > 0 && (
         <MatchingTrials trials={displayTrialMatches} />
       )}
 
-      {activeStep >= 2 && displayTrialMatches && displayTrialMatches.length > 0 && displayExtractedInfo && (
+      {activeStep >= 2 && Array.isArray(displayTrialMatches) && displayTrialMatches.length > 0 && displayExtractedInfo && (
         <EligibilitySummary 
           extractedInfo={displayExtractedInfo}
           matchedTrials={displayTrialMatches}
