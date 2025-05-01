@@ -10,41 +10,67 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { queryClient } from "@/lib/queryClient";
 
 export default function ClinicalTrials() {
   const [searchQuery, setSearchQuery] = useState("");
   const [phaseFilter, setPhaseFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("recruiting");
+  const [condition, setCondition] = useState("cancer");
   
-  const { data: trials, isLoading } = useQuery({
-    queryKey: ['/api/trials'],
+  // Add a condition selection dropdown
+  const handleConditionChange = (value: string) => {
+    setCondition(value);
+    // Clear the search query
+    setSearchQuery("");
+  };
+  
+  // Use the clinical trials search endpoint specifically for IRCCS trials
+  const { data: irccsTrials, isLoading: isIrccsLoading, refetch: refetchIrccsTrials } = useQuery({
+    queryKey: ['/api/trials/search', condition, statusFilter, phaseFilter],
+    queryFn: async () => {
+      // Build the query params
+      const params = new URLSearchParams();
+      if (condition) params.append('condition', condition);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (phaseFilter !== 'all') params.append('phase', phaseFilter);
+      
+      // Always filter for IRCCS Istituto Nazionale dei Tumori
+      params.append('facilityName', 'IRCCS Istituto Nazionale dei Tumori');
+      
+      const response = await fetch(`/api/trials/search?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch IRCCS trials');
+      }
+      return await response.json();
+    },
+    enabled: true // Always run this query when the component mounts
   });
-
-  // Filter trials based on filters
-  const filteredTrials = trials ? trials.filter(
+  
+  // Effect to update filters
+  useEffect(() => {
+    refetchIrccsTrials();
+  }, [statusFilter, phaseFilter, condition]);
+  
+  // Use IRCCS trials or empty array if no trials found
+  const allTrials = irccsTrials || [];
+  const isLoadingTrials = isIrccsLoading;
+  
+  // Filter trials based only on text search (other filters are applied at the API level)
+  const filteredTrials = allTrials.filter(
     (trial: any) => {
-      // Search filter
-      const matchesSearch = 
-        trial.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        trial.nctId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      // Only apply the text search filter
+      const matchesSearch = !searchQuery || searchQuery === "" || 
+        trial.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        trial.nctId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (trial.facility && trial.facility.toLowerCase().includes(searchQuery.toLowerCase()));
       
-      // Phase filter
-      const matchesPhase = 
-        phaseFilter === "all" || 
-        (trial.phase && trial.phase.toLowerCase().includes(phaseFilter.toLowerCase()));
-      
-      // Status filter
-      const matchesStatus = 
-        statusFilter === "all" || 
-        (trial.status && trial.status.toLowerCase() === statusFilter.toLowerCase());
-      
-      return matchesSearch && matchesPhase && matchesStatus;
+      return matchesSearch;
     }
-  ) : [];
+  );
 
   return (
     <div>
@@ -109,7 +135,7 @@ export default function ClinicalTrials() {
             </div>
           </div>
 
-          {isLoading ? (
+          {isLoadingTrials ? (
             <div className="h-[400px] flex items-center justify-center">
               <p className="text-neutral-500">Loading clinical trials...</p>
             </div>
@@ -192,69 +218,12 @@ export default function ClinicalTrials() {
                 </div>
               )}
               
-              {/* Default trials if none are loaded */}
-              {!trials && (
-                <div 
-                  className="border border-neutral-200 rounded-lg p-4 hover:border-primary transition-colors"
-                >
-                  <div className="flex justify-between">
-                    <div>
-                      <h3 className="text-base font-semibold text-neutral-700">PALLAS: PALbociclib CoLlaborative Adjuvant Study</h3>
-                      <p className="text-sm text-neutral-500 mt-1">NCT02513394 • Phase 3 • University Medical Center</p>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <Badge variant="default" className="bg-primary">Recruiting</Badge>
-                      <span className="text-xs text-neutral-500 mt-2">2.4 miles away</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <h4 className="text-xs font-semibold text-neutral-500 uppercase mb-1">Primary Purpose</h4>
-                      <p className="text-sm text-neutral-700">Treatment</p>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-semibold text-neutral-500 uppercase mb-1">Intervention</h4>
-                      <p className="text-sm text-neutral-700">Palbociclib + Standard Endocrine Therapy</p>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-semibold text-neutral-500 uppercase mb-1">Status</h4>
-                      <p className="text-sm text-neutral-700">Recruiting</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3">
-                    <h4 className="text-xs font-semibold text-neutral-500 uppercase mb-1">Summary</h4>
-                    <p className="text-sm text-neutral-700 line-clamp-2">
-                      A randomized phase III trial evaluating palbociclib with standard adjuvant endocrine therapy 
-                      versus standard adjuvant endocrine therapy alone for hormone receptor positive (HR+) / human 
-                      epidermal growth factor receptor 2 (HER2)-negative early breast cancer.
-                    </p>
-                  </div>
-                  
-                  <div className="mt-4 pt-3 border-t border-neutral-200 flex justify-between items-center">
-                    <div>
-                      <h4 className="text-xs font-semibold text-neutral-500 uppercase mb-1">Key Eligibility Factors</h4>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2 py-0.5 bg-success/10 text-success text-xs rounded-full">
-                          <Icon name="check" className="mr-1 h-3 w-3" /> Stage 2
-                        </span>
-                        <span className="inline-flex items-center px-2 py-0.5 bg-success/10 text-success text-xs rounded-full">
-                          <Icon name="check" className="mr-1 h-3 w-3" /> HR+/HER2-
-                        </span>
-                        <span className="inline-flex items-center px-2 py-0.5 bg-success/10 text-success text-xs rounded-full">
-                          <Icon name="check" className="mr-1 h-3 w-3" /> Completed Surgery
-                        </span>
-                      </div>
-                    </div>
-                    <Button variant="link">View Details</Button>
-                  </div>
-                </div>
-              )}
-              
-              {(filteredTrials.length > 0 || !trials) && (
+              {/* Link to search for more trials */}
+              {filteredTrials.length > 0 && (
                 <div className="text-center py-2">
-                  <Button variant="link">Load More Results</Button>
+                  <Button variant="link" onClick={() => handleConditionChange("cancer")}>
+                    Load More Trials
+                  </Button>
                 </div>
               )}
             </div>

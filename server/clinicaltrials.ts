@@ -20,61 +20,102 @@ export async function searchClinicalTrials(query: {
   facilityName?: string;
 }): Promise<InsertClinicalTrial[]> {
   try {
-    // Build query parameters
+    // Build query parameters for ClinicalTrials.gov API v2
+    // Documentation: https://clinicaltrials.gov/data-api/api-docs
     const params = new URLSearchParams();
-    if (query.condition) params.append('condition', query.condition);
-    if (query.location) params.append('location', query.location);
-    if (query.status) params.append('status', query.status);
-    if (query.phase) params.append('phase', query.phase);
+    
+    // Build search query based on parameters
+    let searchQuery = "";
+    
+    // Add condition to search query
+    if (query.condition) searchQuery += `AREA[ConditionSearch] ${query.condition} AND `;
+    
+    // Add status to search query if provided, default to recruiting
+    const status = query.status || 'recruiting';
+    searchQuery += `AREA[OverallStatus] ${status} AND `;
+    
+    // Add phase to search query if provided
+    if (query.phase && query.phase !== 'all') searchQuery += `AREA[Phase] Phase ${query.phase} AND `;
     
     // Add facility name - default to IRCCS Istituto Nazionale dei Tumori
     const facilityName = query.facilityName || 'IRCCS Istituto Nazionale dei Tumori';
-    params.append('term', facilityName);
+    searchQuery += `AREA[LocationFacility] "${facilityName}"`;
     
-    // Default to recruiting trials only if not specified
-    if (!query.status) params.append('status', 'recruiting');
+    // Remove trailing AND if present
+    searchQuery = searchQuery.replace(/ AND $/, '');
+    
+    // Add the expression parameter with our search query
+    params.append('query.expr', searchQuery);
+    
+    // Set fields to retrieve all available data
+    params.append('fields', 'FullStudiesResponse');
     
     // Set result limit
-    params.append('limit', (query.limit || 20).toString());
+    params.append('pageSize', (query.limit || 20).toString());
     
     // Format for JSON response
     params.append('format', 'json');
     
+    console.log("API Query:", searchQuery);
+    
     // Execute the API request
     const response = await axios.get(`${CT_API_BASE_URL}?${params.toString()}`);
     
-    if (!response.data || !response.data.studies) {
-      throw new Error('Invalid response from ClinicalTrials.gov API');
+    // Log the response structure for debugging
+    console.log("API Response structure:", JSON.stringify(Object.keys(response.data || {})));
+    
+    // Check if we have valid study data
+    if (!response.data || !response.data.fullStudiesResponse || 
+        !response.data.fullStudiesResponse.fullStudies || 
+        !Array.isArray(response.data.fullStudiesResponse.fullStudies)) {
+      console.warn('No valid data returned from ClinicalTrials.gov API');
+      return [];
     }
     
+    // Log how many studies we found
+    const studies = response.data.fullStudiesResponse.fullStudies;
+    console.log(`Found ${studies.length} studies at ${facilityName}`);
+    
     // Transform the API response to our schema format
-    return response.data.studies.map((study: any) => {
-      // Extract eligibility criteria
-      const inclusions = study.eligibility?.criteria?.textblock
-        ?.split(/inclusion criteria:/i)[1]
-        ?.split(/exclusion criteria:/i)[0]
-        ?.trim()
-        ?.split(/[.\n]/)
-        ?.filter(Boolean)
-        ?.map((s: string) => s.trim()) || [];
-        
-      const exclusions = study.eligibility?.criteria?.textblock
-        ?.split(/exclusion criteria:/i)[1]
-        ?.trim()
-        ?.split(/[.\n]/)
-        ?.filter(Boolean)
-        ?.map((s: string) => s.trim()) || [];
+    return studies.map((studyData: any) => {
+      const study = studyData.study || {};
+      
+      // Get protocol section which contains most of the data
+      const protocolSection = study.protocolSection || {};
+      
+      // Get eligibility criteria text
+      const eligibilityText = protocolSection.eligibilityModule?.eligibilityCriteria || '';
+      
+      // Extract inclusion/exclusion criteria
+      const inclusionMatch = /inclusion criteria:([^]*?)(?:exclusion criteria:|$)/i.exec(eligibilityText);
+      const exclusionMatch = /exclusion criteria:([^]*?)$/i.exec(eligibilityText);
+      
+      const inclusions = inclusionMatch ? 
+        inclusionMatch[1].trim().split(/[.\n]/).filter(Boolean).map((s: string) => s.trim()) : [];
+      
+      const exclusions = exclusionMatch ? 
+        exclusionMatch[1].trim().split(/[.\n]/).filter(Boolean).map((s: string) => s.trim()) : [];
+      
+      // Get locations information
+      const locations = protocolSection.contactsLocationsModule?.locations || [];
+      const facilityInfo = locations.find((loc: any) => 
+        loc.facility?.toLowerCase().includes('irccs istituto nazionale dei tumori')) || locations[0] || {};
+      
+      // Get interventions
+      const interventions = protocolSection.armsInterventionsModule?.interventions || [];
+      const intervention = interventions.length > 0 ? interventions[0].name : '';
       
       return {
-        nctId: study.protocolSection?.identificationModule?.nctId || '',
-        title: study.protocolSection?.identificationModule?.officialTitle || '',
-        phase: study.protocolSection?.designModule?.phases?.join('/') || '',
-        status: study.protocolSection?.statusModule?.overallStatus || '',
-        facility: study.protocolSection?.contactsLocationsModule?.locations?.[0]?.facility || '',
+        nctId: protocolSection.identificationModule?.nctId || '',
+        title: protocolSection.identificationModule?.briefTitle || '',
+        phase: Array.isArray(protocolSection.designModule?.phases) ? 
+          protocolSection.designModule?.phases.join('/') : protocolSection.designModule?.phaseList || '',
+        status: protocolSection.statusModule?.overallStatus || '',
+        facility: facilityInfo.facility || facilityName,
         distance: 0, // Would require geolocation calculation
-        primaryPurpose: study.protocolSection?.designModule?.primaryPurpose || '',
-        intervention: study.protocolSection?.armsInterventionsModule?.interventions?.[0]?.name || '',
-        summary: study.protocolSection?.descriptionModule?.briefSummary || '',
+        primaryPurpose: protocolSection.designModule?.primaryPurpose || '',
+        intervention: intervention,
+        summary: protocolSection.descriptionModule?.briefSummary || '',
         eligibilityCriteria: {
           inclusions,
           exclusions,
@@ -93,40 +134,56 @@ export async function searchClinicalTrials(query: {
  */
 export async function getClinicalTrialByNctId(nctId: string): Promise<InsertClinicalTrial | null> {
   try {
-    const response = await axios.get(`${CT_API_BASE_URL}/${nctId}?format=json`);
+    // Parameters
+    const params = new URLSearchParams();
+    params.append('format', 'json');
     
-    if (!response.data) {
+    // API v2 uses a different endpoint structure for individual studies
+    const response = await axios.get(`${CT_API_BASE_URL}/${nctId}?${params.toString()}`);
+    
+    if (!response.data || !response.data.fullStudy || !response.data.fullStudy.study) {
+      console.warn(`No data found for NCT ID: ${nctId}`);
       return null;
     }
     
-    const study = response.data;
+    // Get the study data
+    const study = response.data.fullStudy.study;
+    const protocolSection = study.protocolSection || {};
     
-    // Extract eligibility criteria
-    const inclusions = study.eligibility?.criteria?.textblock
-      ?.split(/inclusion criteria:/i)[1]
-      ?.split(/exclusion criteria:/i)[0]
-      ?.trim()
-      ?.split(/[.\n]/)
-      ?.filter(Boolean)
-      ?.map((s: string) => s.trim()) || [];
+    // Get eligibility criteria text
+    const eligibilityText = protocolSection.eligibilityModule?.eligibilityCriteria || '';
       
-    const exclusions = study.eligibility?.criteria?.textblock
-      ?.split(/exclusion criteria:/i)[1]
-      ?.trim()
-      ?.split(/[.\n]/)
-      ?.filter(Boolean)
-      ?.map((s: string) => s.trim()) || [];
+    // Extract inclusion/exclusion criteria
+    const inclusionMatch = /inclusion criteria:([^]*?)(?:exclusion criteria:|$)/i.exec(eligibilityText);
+    const exclusionMatch = /exclusion criteria:([^]*?)$/i.exec(eligibilityText);
+    
+    const inclusions = inclusionMatch ? 
+      inclusionMatch[1].trim().split(/[.\n]/).filter(Boolean).map((s: string) => s.trim()) : [];
+    
+    const exclusions = exclusionMatch ? 
+      exclusionMatch[1].trim().split(/[.\n]/).filter(Boolean).map((s: string) => s.trim()) : [];
+    
+    // Get locations information
+    const locations = protocolSection.contactsLocationsModule?.locations || [];
+    const facilityInfo = locations.find((loc: any) => 
+      loc.facility?.toLowerCase().includes('irccs istituto nazionale dei tumori')) || locations[0] || {};
+    
+    // Get interventions
+    const interventions = protocolSection.armsInterventionsModule?.interventions || [];
+    const intervention = interventions.length > 0 ? interventions[0].name : '';
     
     return {
-      nctId: study.protocolSection?.identificationModule?.nctId || '',
-      title: study.protocolSection?.identificationModule?.officialTitle || '',
-      phase: study.protocolSection?.designModule?.phases?.join('/') || '',
-      status: study.protocolSection?.statusModule?.overallStatus || '',
-      facility: study.protocolSection?.contactsLocationsModule?.locations?.[0]?.facility || '',
+      nctId: protocolSection.identificationModule?.nctId || '',
+      title: protocolSection.identificationModule?.briefTitle || 
+             protocolSection.identificationModule?.officialTitle || '',
+      phase: Array.isArray(protocolSection.designModule?.phases) ? 
+        protocolSection.designModule?.phases.join('/') : protocolSection.designModule?.phaseList || '',
+      status: protocolSection.statusModule?.overallStatus || '',
+      facility: facilityInfo.facility || 'Unknown Facility',
       distance: 0,
-      primaryPurpose: study.protocolSection?.designModule?.primaryPurpose || '',
-      intervention: study.protocolSection?.armsInterventionsModule?.interventions?.[0]?.name || '',
-      summary: study.protocolSection?.descriptionModule?.briefSummary || '',
+      primaryPurpose: protocolSection.designModule?.primaryPurpose || '',
+      intervention: intervention,
+      summary: protocolSection.descriptionModule?.briefSummary || '',
       eligibilityCriteria: {
         inclusions,
         exclusions,
