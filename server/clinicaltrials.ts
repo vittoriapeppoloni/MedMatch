@@ -5,7 +5,7 @@ import { InsertClinicalTrial } from '@shared/schema';
 // Clinical Trials API base URL - use API v2 as it's more feature-rich
 const CT_API_BASE_URL = 'https://clinicaltrials.gov/api/v2/studies';
 
-// List of possible facility name variations for IRCCS Istituto Nazionale dei Tumori
+// List of possible facility name variations for IRCCS Istituto Nazionale dei Tumori (case-insensitive)
 const FACILITY_NAME_VARIATIONS = [
   'irccs istituto nazionale dei tumori',
   'istituto nazionale dei tumori',
@@ -13,8 +13,17 @@ const FACILITY_NAME_VARIATIONS = [
   'irccs istituto nazionale tumori',
   'int - istituto nazionale tumori',
   'fondazione irccs - istituto nazionale dei tumori',
-  'fondazione irccs istituto nazionale dei tumori'
+  'fondazione irccs istituto nazionale dei tumori',
+  'istituto nazionale tumori',
+  'irccs int',
+  'int'
 ];
+
+// Default query parameters when searching for trials
+const DEFAULT_API_PARAMS = {
+  pageSize: 100,
+  countTotal: true
+};
 const SAMPLE_IRCCS_TRIALS = [
   {
     nctId: 'NCT05149898',
@@ -88,6 +97,138 @@ const SAMPLE_IRCCS_TRIALS = [
  * @param query Search parameters (e.g., condition, location)
  * @returns Array of formatted clinical trials
  */
+/**
+ * Fetch all trials from ClinicalTrials.gov for IRCCS Istituto Nazionale dei Tumori
+ * This makes multiple API calls to get all trials (using pagination)
+ */
+async function fetchAllIRCCSTrials(): Promise<InsertClinicalTrial[]> {
+  const allTrials: InsertClinicalTrial[] = [];
+  let pageToken = null;
+  let hasMorePages = true;
+  let pageCount = 0;
+  const maxPages = 5; // Limit to 5 pages (500 trials) for performance
+  
+  // Search for all trials that mention Istituto Nazionale dei Tumori
+  const searchTerm = "Istituto Nazionale dei Tumori";
+  
+  try {
+    console.log(`Fetching ALL trials from ClinicalTrials.gov for '${searchTerm}'...`);
+    
+    while (hasMorePages && pageCount < maxPages) {
+      pageCount++;
+      
+      // Build parameters
+      const params = new URLSearchParams();
+      params.append('query.term', searchTerm);
+      params.append('pageSize', '100');
+      
+      // Add page token if we have one
+      if (pageToken) {
+        params.append('pageToken', pageToken);
+      }
+      
+      console.log(`Fetching page ${pageCount} of trials...`);
+      
+      // Make API request
+      const response = await axios.get(`${CT_API_BASE_URL}?${params.toString()}`);
+      
+      // Check if we have valid data
+      if (!response.data || !response.data.studies || !Array.isArray(response.data.studies)) {
+        console.warn(`Invalid response data for page ${pageCount}`);
+        hasMorePages = false;
+        continue;
+      }
+      
+      // Get next page token
+      pageToken = response.data.nextPageToken;
+      hasMorePages = !!pageToken;
+      
+      // Get the studies from the API response
+      const studies = response.data.studies;
+      console.log(`Retrieved ${studies.length} trials on page ${pageCount}`);
+      
+      // Filter to only include studies at IRCCS
+      const irccsTrials = studies
+        .filter((study: any) => {
+          // Get the locations from the study
+          const locations = study.protocolSection?.contactsLocationsModule?.locations || [];
+          
+          // Check if any location matches our facility variations
+          return locations.some((loc: any) => {
+            const facility = (loc.facility || '').toLowerCase();
+            return FACILITY_NAME_VARIATIONS.some(variation => facility.includes(variation));
+          });
+        })
+        .map((study: any) => {
+          // Get protocol section which contains most of the data
+          const protocolSection = study.protocolSection || {};
+          
+          // Get locations information
+          const locations = protocolSection.contactsLocationsModule?.locations || [];
+          const facilityInfo = locations.find((loc: any) => {
+            const facility = (loc.facility || '').toLowerCase();
+            return FACILITY_NAME_VARIATIONS.some(variation => facility.includes(variation));
+          }) || locations[0] || {};
+          
+          // Get interventions
+          const interventions = protocolSection.armsInterventionsModule?.interventions || [];
+          const intervention = interventions.length > 0 ? 
+            interventions[0].interventionName || interventions[0].name || '' : '';
+          
+          // Get eligibility criteria text
+          const eligibilityText = protocolSection.eligibilityModule?.eligibilityCriteria || '';
+          
+          // Extract inclusion/exclusion criteria
+          const inclusionMatch = /inclusion criteria:([^]*?)(?:exclusion criteria:|$)/i.exec(eligibilityText);
+          const exclusionMatch = /exclusion criteria:([^]*?)$/i.exec(eligibilityText);
+          
+          const inclusions = inclusionMatch ? 
+            inclusionMatch[1].trim().split(/[.\n]/).filter(Boolean).map((s: string) => s.trim()) : [];
+          
+          const exclusions = exclusionMatch ? 
+            exclusionMatch[1].trim().split(/[.\n]/).filter(Boolean).map((s: string) => s.trim()) : [];
+          
+          // Transform to our schema format
+          return {
+            nctId: protocolSection.identificationModule?.nctId || '',
+            title: protocolSection.identificationModule?.briefTitle || '',
+            phase: protocolSection.designModule?.phases?.join('/') || '',
+            status: protocolSection.statusModule?.overallStatus || '',
+            facility: facilityInfo.facility || 'IRCCS Istituto Nazionale dei Tumori',
+            distance: 0,
+            primaryPurpose: protocolSection.designModule?.primaryPurpose || '',
+            intervention,
+            summary: protocolSection.descriptionModule?.briefSummary || '',
+            eligibilityCriteria: {
+              inclusions: inclusions.slice(0, 5), // Limit to 5 for UI display
+              exclusions: exclusions.slice(0, 5), // Limit to 5 for UI display
+              preferred: []
+            }
+          };
+        });
+      
+      console.log(`Found ${irccsTrials.length} trials at IRCCS Istituto Nazionale dei Tumori on page ${pageCount}`);
+      
+      // Add trials to our result array
+      allTrials.push(...irccsTrials);
+    }
+    
+    console.log(`Total trials fetched: ${allTrials.length}`);
+    
+    // Return all the trials
+    return allTrials;
+  } catch (error) {
+    console.error('Error fetching all trials:', error);
+    // Fall back to sample trials
+    return SAMPLE_IRCCS_TRIALS;
+  }
+}
+
+// In-memory cache for API results to improve performance
+let cachedTrials: InsertClinicalTrial[] | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour cache
+
 export async function searchClinicalTrials(query: {
   condition?: string;
   location?: string;
@@ -102,17 +243,32 @@ export async function searchClinicalTrials(query: {
     
     console.log(`Searching for trials at ${facilityName} for condition: ${query.condition || 'any'}`);
     
-    // Skip the API call - the ClinicalTrials.gov API is unreliable
-    // Instead, return our well-curated sample data with proper filtering
+    // Check if we need to fetch trials, or if we have cache
+    const now = Date.now();
+    if (!cachedTrials || now - cacheTimestamp > CACHE_TTL) {
+      // Cache expired or doesn't exist, fetch all trials
+      console.log('Cache expired or empty, fetching all trials...');
+      cachedTrials = await fetchAllIRCCSTrials();
+      cacheTimestamp = now;
+    } else {
+      console.log(`Using cached trials (${cachedTrials.length} trials, cache age: ${Math.floor((now - cacheTimestamp) / 1000)} seconds)`);
+    }
     
-    // Start with all sample trials
-    let trials = [...SAMPLE_IRCCS_TRIALS];
+    // Make sure we always have the sample trials in our results
+    // This ensures KRASCENDO LUNG 170 and other important trials are available
+    const combinedTrials = [...cachedTrials];
     
-    // Log available trials for debugging
-    console.log(`Available sample trials before filtering (${trials.length}):`);
-    trials.forEach(trial => {
-      console.log(`- ${trial.nctId}: ${trial.title}`);
-    });
+    // Merge sample trials that aren't already in the results
+    for (const sampleTrial of SAMPLE_IRCCS_TRIALS) {
+      if (!combinedTrials.some(trial => trial.nctId === sampleTrial.nctId)) {
+        combinedTrials.push(sampleTrial);
+      }
+    }
+    
+    console.log(`Combined trials count: ${combinedTrials.length}`);
+    
+    // Start filtering trials based on query parameters
+    let filteredTrials = [...combinedTrials];
     
     // Apply filtering based on condition
     if (query.condition && query.condition !== 'cancer') {
@@ -121,23 +277,17 @@ export async function searchClinicalTrials(query: {
       
       // Special handling for lung cancer to ensure KRASCENDO shows up
       if (condition === 'lung cancer') {
-        // Get all lung cancer related trials
-        trials = trials.filter(trial => {
-          const titleContainsLung = trial.title.toLowerCase().includes('lung');
-          const summaryContainsLung = trial.summary.toLowerCase().includes('lung');
+        filteredTrials = filteredTrials.filter(trial => {
+          const titleContainsLung = (trial.title || '').toLowerCase().includes('lung');
+          const summaryContainsLung = (trial.summary || '').toLowerCase().includes('lung');
           const isKrascendo = trial.nctId === 'NCT05149898';
-          
-          console.log(`Trial ${trial.nctId} - Contains 'lung'?: ${titleContainsLung || summaryContainsLung}, Is KRASCENDO?: ${isKrascendo}`);
           
           return titleContainsLung || summaryContainsLung || isKrascendo;
         });
       } else {
-        // Standard condition filtering
-        trials = trials.filter(trial => {
-          const matchesTitle = trial.title.toLowerCase().includes(condition);
-          const matchesSummary = trial.summary.toLowerCase().includes(condition);
-          
-          console.log(`Trial ${trial.nctId} - ${matchesTitle || matchesSummary ? 'Matches' : 'Does not match'} condition '${condition}'`);
+        filteredTrials = filteredTrials.filter(trial => {
+          const matchesTitle = (trial.title || '').toLowerCase().includes(condition);
+          const matchesSummary = (trial.summary || '').toLowerCase().includes(condition);
           
           return matchesTitle || matchesSummary;
         });
@@ -147,29 +297,26 @@ export async function searchClinicalTrials(query: {
     // Apply filtering based on status
     if (query.status && query.status !== 'all') {
       const status = query.status.toLowerCase();
-      console.log(`Filtering for status: ${status}`);
-      trials = trials.filter(trial => {
-        const matches = trial.status.toLowerCase() === status;
-        console.log(`Trial ${trial.nctId} - Status match?: ${matches}`);
-        return matches;
-      });
+      filteredTrials = filteredTrials.filter(trial => 
+        (trial.status || '').toLowerCase() === status);
     }
     
     // Apply filtering based on phase
     if (query.phase && query.phase !== 'all') {
-      const phase = `phase ${query.phase}`;
-      console.log(`Filtering for phase: ${phase}`);
-      trials = trials.filter(trial => {
-        const matches = trial.phase.toLowerCase().includes(phase.toLowerCase());
-        console.log(`Trial ${trial.nctId} - Phase match?: ${matches}`);
-        return matches;
-      });
+      const phase = query.phase.toLowerCase();
+      filteredTrials = filteredTrials.filter(trial => 
+        (trial.phase || '').toLowerCase().includes(phase));
     }
     
-    console.log(`After filtering, ${trials.length} trials remain`);
+    console.log(`After filtering, ${filteredTrials.length} trials remain`);
+    
+    // Sort by NCT ID (newer trials first)
+    filteredTrials.sort((a, b) => {
+      return (b.nctId || '').localeCompare(a.nctId || '');
+    });
     
     // Return all trials that match the criteria
-    return trials;
+    return filteredTrials;
   } catch (error) {
     console.error('Error in searchClinicalTrials:', error);
     // Return default trials on error
