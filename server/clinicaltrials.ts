@@ -17,6 +17,7 @@ export async function searchClinicalTrials(query: {
   status?: string;
   phase?: string;
   limit?: number;
+  facilityName?: string;
 }): Promise<InsertClinicalTrial[]> {
   try {
     // Build query parameters
@@ -25,6 +26,10 @@ export async function searchClinicalTrials(query: {
     if (query.location) params.append('location', query.location);
     if (query.status) params.append('status', query.status);
     if (query.phase) params.append('phase', query.phase);
+    
+    // Add facility name - default to IRCCS Istituto Nazionale dei Tumori
+    const facilityName = query.facilityName || 'IRCCS Istituto Nazionale dei Tumori';
+    params.append('term', facilityName);
     
     // Default to recruiting trials only if not specified
     if (!query.status) params.append('status', 'recruiting');

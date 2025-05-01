@@ -326,9 +326,9 @@ export async function extractMedicalInfoWithLocalLLM(text: string) {
 }
 ```
 
-## ClinicalTrials.gov Integration
+## ClinicalTrials.gov Integration with IRCCS Istituto Nazionale dei Tumori Focus
 
-The application currently uses a static list of clinical trials. To integrate with ClinicalTrials.gov:
+The application is specifically configured to search for clinical trials at the IRCCS Istituto Nazionale dei Tumori in Milan. The integration with ClinicalTrials.gov allows for real-time retrieval of ongoing trials at this institution:
 
 1. Create a new file `server/clinicaltrials.ts`:
 
@@ -352,6 +352,7 @@ export async function searchClinicalTrials(query: {
   status?: string;
   phase?: string;
   limit?: number;
+  facilityName?: string;
 }): Promise<InsertClinicalTrial[]> {
   try {
     // Build query parameters
@@ -360,6 +361,10 @@ export async function searchClinicalTrials(query: {
     if (query.location) params.append('location', query.location);
     if (query.status) params.append('status', query.status);
     if (query.phase) params.append('phase', query.phase);
+    
+    // Add facility name - default to IRCCS Istituto Nazionale dei Tumori
+    const facilityName = query.facilityName || 'IRCCS Istituto Nazionale dei Tumori';
+    params.append('term', facilityName);
     
     // Default to recruiting trials only if not specified
     if (!query.status) params.append('status', 'recruiting');
@@ -479,15 +484,19 @@ import { searchClinicalTrials, getClinicalTrialByNctId } from './clinicaltrials'
 // Add a new endpoint for searching clinical trials
 app.get(`${apiPrefix}/trials/search`, async (req, res) => {
   try {
-    const { condition, location, status, phase, limit } = req.query as any;
+    const { condition, location, status, phase, limit, facilityName } = req.query as any;
     
     const trials = await searchClinicalTrials({
       condition,
       location,
       status,
       phase,
+      facilityName, // Filter to IRCCS Istituto Nazionale dei Tumori by default
       limit: limit ? parseInt(limit) : undefined
     });
+    
+    // Log the number of trials found for this facility
+    console.log(`Found ${trials.length} trials at ${facilityName || 'IRCCS Istituto Nazionale dei Tumori'}`);
     
     res.json(trials);
   } catch (error) {
@@ -496,25 +505,80 @@ app.get(`${apiPrefix}/trials/search`, async (req, res) => {
 });
 
 // Modify the existing trial matching endpoint to use ClinicalTrials.gov
-app.post(`${apiPrefix}/trial-matching`, async (req, res) => {
+app.post(`${apiPrefix}/match-trials`, async (req, res) => {
   try {
     const { medicalText } = req.body;
     
-    // Extract medical information
+    if (!medicalText) {
+      return res.status(400).json({ message: 'Medical text is required' });
+    }
+    
+    // Extract information from the medical text
     const extractedInfo = extractMedicalInfo(medicalText);
     
-    // Search for trials based on the primary diagnosis
-    const condition = extractedInfo.diagnosis?.primaryDiagnosis || 'cancer';
-    const availableTrials = await searchClinicalTrials({ condition });
+    // Search for trials from ClinicalTrials.gov based on extracted diagnosis
+    let availableTrials = await storage.getClinicalTrials(); // Fallback to stored trials
     
-    // Match the patient to the retrieved trials
+    try {
+      const condition = safeString(extractedInfo.diagnosis.primaryDiagnosis).toLowerCase();
+      if (condition && condition !== '') {
+        // Try to get more specific trials from ClinicalTrials.gov
+        // Specific to IRCCS Istituto Nazionale dei Tumori
+        const clinicalTrialsGovTrials = await searchClinicalTrials({ 
+          condition, 
+          status: 'recruiting',
+          facilityName: 'IRCCS Istituto Nazionale dei Tumori',
+          limit: 20 
+        });
+        
+        if (clinicalTrialsGovTrials && clinicalTrialsGovTrials.length > 0) {
+          // Add IDs to the trials and ensure all required fields have values
+          const trialsWithIds = clinicalTrialsGovTrials.map((trial, index) => ({
+            ...trial,
+            id: index + 1000, // Start from 1000 to avoid conflicts with existing IDs
+            status: trial.status || null,
+            facility: trial.facility || null,
+            // Add other fields with defaults as needed
+          }));
+          
+          // Use the trials from ClinicalTrials.gov
+          console.log(`Found ${trialsWithIds.length} trials from ClinicalTrials.gov for condition: ${condition}`);
+          availableTrials = trialsWithIds;
+        } else {
+          // Fall back to general cancer search
+          console.log(`No trials found for specific condition: ${condition}, falling back to general cancer search`);
+          const cancerTrials = await searchClinicalTrials({ 
+            condition: 'cancer', 
+            status: 'recruiting',
+            facilityName: 'IRCCS Istituto Nazionale dei Tumori',
+            limit: 20 
+          });
+          
+          if (cancerTrials && cancerTrials.length > 0) {
+            const cancerTrialsWithIds = cancerTrials.map((trial, index) => ({
+              ...trial,
+              id: index + 2000, // Start from 2000 to avoid conflicts
+              // Add defaults for required fields
+            }));
+            availableTrials = cancerTrialsWithIds;
+          }
+        }
+      }
+    } catch (apiError) {
+      console.error("Error fetching trials from ClinicalTrials.gov:", apiError);
+      // Continue with stored trials if API fails
+    }
+    
+    // Find matching trials
     const matchedTrials = matchPatientToTrials(extractedInfo, availableTrials);
     
+    // Return both extracted info and matched trials
     res.json({
       extractedInfo,
       matchedTrials
     });
   } catch (error) {
+    console.error("Error in trial matching:", error);
     handleError(res, error);
   }
 });

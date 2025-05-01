@@ -89,15 +89,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search clinical trials from ClinicalTrials.gov
   app.get(`${apiPrefix}/trials/search`, async (req, res) => {
     try {
-      const { condition, location, status, phase, limit } = req.query as any;
+      const { condition, location, status, phase, limit, facilityName } = req.query as any;
       
       const trials = await searchClinicalTrials({
         condition,
         location,
         status,
         phase,
+        facilityName, // Filter to IRCCS Istituto Nazionale dei Tumori by default
         limit: limit ? parseInt(limit) : undefined
       });
+      
+      // Log the number of trials found for this facility
+      console.log(`Found ${trials.length} trials at ${facilityName || 'IRCCS Istituto Nazionale dei Tumori'}`);
       
       res.json(trials);
     } catch (error) {
@@ -124,9 +128,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const condition = safeString(extractedInfo.diagnosis.primaryDiagnosis).toLowerCase();
         if (condition && condition !== '') {
           // Try to get more specific trials from ClinicalTrials.gov
+          // Specific to IRCCS Istituto Nazionale dei Tumori
           const clinicalTrialsGovTrials = await searchClinicalTrials({ 
             condition, 
-            status: 'recruiting', 
+            status: 'recruiting',
+            facilityName: 'IRCCS Istituto Nazionale dei Tumori',
             limit: 20 
           });
           
@@ -153,7 +159,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`No trials found for specific condition: ${condition}, falling back to general cancer search`);
             const cancerTrials = await searchClinicalTrials({ 
               condition: 'cancer', 
-              status: 'recruiting', 
+              status: 'recruiting',
+              facilityName: 'IRCCS Istituto Nazionale dei Tumori',
               limit: 20 
             });
             
