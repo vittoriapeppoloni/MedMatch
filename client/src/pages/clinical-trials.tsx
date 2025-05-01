@@ -90,48 +90,75 @@ export default function ClinicalTrials() {
           <CardTitle className="text-lg">Trial Database</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div className="relative w-full md:w-96">
-              <Input
-                type="text"
-                placeholder="Search trials by name, ID, or facility..."
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Icon name="search" className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
+          <div className="flex flex-col gap-4 mb-6">
+            {/* Search and filter controls */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="relative w-full md:w-96">
+                <Input
+                  type="text"
+                  placeholder="Search trials by name, ID, or facility..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Icon name="search" className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Phase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Phases</SelectItem>
+                    <SelectItem value="1">Phase 1</SelectItem>
+                    <SelectItem value="2">Phase 2</SelectItem>
+                    <SelectItem value="3">Phase 3</SelectItem>
+                    <SelectItem value="4">Phase 4</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="recruiting">Recruiting</SelectItem>
+                    <SelectItem value="not recruiting">Not Recruiting</SelectItem>
+                    <SelectItem value="active, not recruiting">Active, Not Recruiting</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Select value={phaseFilter} onValueChange={setPhaseFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Phase" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Phases</SelectItem>
-                  <SelectItem value="1">Phase 1</SelectItem>
-                  <SelectItem value="2">Phase 2</SelectItem>
-                  <SelectItem value="3">Phase 3</SelectItem>
-                  <SelectItem value="4">Phase 4</SelectItem>
-                </SelectContent>
-              </Select>
+            
+            {/* Cancer type selection */}
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+              <div className="flex-1">
+                <Select value={condition} onValueChange={handleConditionChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Cancer Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cancer">All Cancer Types</SelectItem>
+                    <SelectItem value="breast cancer">Breast Cancer</SelectItem>
+                    <SelectItem value="lung cancer">Lung Cancer</SelectItem>
+                    <SelectItem value="prostate cancer">Prostate Cancer</SelectItem>
+                    <SelectItem value="colorectal cancer">Colorectal Cancer</SelectItem>
+                    <SelectItem value="melanoma">Melanoma</SelectItem>
+                    <SelectItem value="leukemia">Leukemia</SelectItem>
+                    <SelectItem value="lymphoma">Lymphoma</SelectItem>
+                    <SelectItem value="pancreatic cancer">Pancreatic Cancer</SelectItem>
+                    <SelectItem value="ovarian cancer">Ovarian Cancer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="recruiting">Recruiting</SelectItem>
-                  <SelectItem value="not-recruiting">Not Recruiting</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button variant="outline" size="sm">
-                <Icon name="filter" className="mr-2 h-4 w-4" />
-                More Filters
-              </Button>
+              <div className="shrink-0">
+                <Badge className="bg-primary-100 text-primary-900 hover:bg-primary-200 transition-colors">
+                  IRCCS Istituto Nazionale dei Tumori
+                </Badge>
+              </div>
             </div>
           </div>
 
