@@ -85,6 +85,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleError(res, error);
     }
   });
+  
+  // Search clinical trials from ClinicalTrials.gov
+  app.get(`${apiPrefix}/trials/search`, async (req, res) => {
+    try {
+      const { condition, location, status, phase, limit } = req.query as any;
+      
+      const trials = await searchClinicalTrials({
+        condition,
+        location,
+        status,
+        phase,
+        limit: limit ? parseInt(limit) : undefined
+      });
+      
+      res.json(trials);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // New trial matching endpoint using ClinicalTrials.gov
+  app.post(`${apiPrefix}/match-trials`, async (req, res) => {
+    try {
+      const { medicalText } = req.body;
+      
+      if (!medicalText) {
+        return res.status(400).json({ message: 'Medical text is required' });
+      }
+      
+      // Extract information from the medical text
+      const extractedInfo = extractMedicalInfo(medicalText);
+      
+      // Search for trials from ClinicalTrials.gov based on extracted diagnosis
+      let availableTrials = await storage.getClinicalTrials(); // Fallback to stored trials
+      
+      try {
+        const condition = safeString(extractedInfo.diagnosis.primaryDiagnosis).toLowerCase();
+        if (condition && condition !== '') {
+          // Try to get more specific trials from ClinicalTrials.gov
+          const clinicalTrialsGovTrials = await searchClinicalTrials({ 
+            condition, 
+            status: 'recruiting', 
+            limit: 20 
+          });
+          
+          if (clinicalTrialsGovTrials && clinicalTrialsGovTrials.length > 0) {
+            // Use the trials from ClinicalTrials.gov
+            console.log(`Found ${clinicalTrialsGovTrials.length} trials from ClinicalTrials.gov for condition: ${condition}`);
+            availableTrials = clinicalTrialsGovTrials;
+          } else {
+            // Use more general cancer search if condition is too specific
+            console.log(`No trials found for specific condition: ${condition}, falling back to general cancer search`);
+            const cancerTrials = await searchClinicalTrials({ 
+              condition: 'cancer', 
+              status: 'recruiting', 
+              limit: 20 
+            });
+            
+            if (cancerTrials && cancerTrials.length > 0) {
+              availableTrials = cancerTrials;
+            }
+          }
+        }
+      } catch (apiError) {
+        console.error("Error fetching trials from ClinicalTrials.gov:", apiError);
+        // Continue with stored trials if API fails
+      }
+      
+      // Find matching trials
+      const matchedTrials = matchPatientToTrials(extractedInfo, availableTrials);
+      
+      // Return both extracted info and matched trials
+      res.json({
+        extractedInfo,
+        matchedTrials
+      });
+    } catch (error) {
+      console.error("Error in trial matching:", error);
+      handleError(res, error);
+    }
+  });
 
   // Get trial by ID
   app.get(`${apiPrefix}/trials/:id`, async (req, res) => {
