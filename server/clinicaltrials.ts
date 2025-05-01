@@ -2,11 +2,19 @@
 import axios from 'axios';
 import { InsertClinicalTrial } from '@shared/schema';
 
-// Clinical Trials API base URL - use API v1 as it's more stable
-const CT_API_BASE_URL = 'https://clinicaltrials.gov/api/query/study_fields';
+// Clinical Trials API base URL - use API v2 as it's more feature-rich
+const CT_API_BASE_URL = 'https://clinicaltrials.gov/api/v2/studies';
 
-// Sample trial data for IRCCS Istituto Nazionale dei Tumori
-// For demonstration purposes when API is unavailable
+// List of possible facility name variations for IRCCS Istituto Nazionale dei Tumori
+const FACILITY_NAME_VARIATIONS = [
+  'irccs istituto nazionale dei tumori',
+  'istituto nazionale dei tumori',
+  'irccs istituto nazionale dei tumori (int)',
+  'irccs istituto nazionale tumori',
+  'int - istituto nazionale tumori',
+  'fondazione irccs - istituto nazionale dei tumori',
+  'fondazione irccs istituto nazionale dei tumori'
+];
 const SAMPLE_IRCCS_TRIALS = [
   {
     nctId: 'NCT04776187',
