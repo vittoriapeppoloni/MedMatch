@@ -46,41 +46,79 @@ export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
       return 'The uploaded file does not appear to be a valid PDF. Please upload a proper PDF document.';
     }
     
+    // Quick check for binary data or encrypted content
+    const sampleText = pdfBuffer.toString('utf8', 0, Math.min(2000, pdfBuffer.length));
+    
+    // If sample contains a lot of non-ASCII characters or binary markers, reject immediately
+    if (
+      sampleText.match(/endstream|endobj|startxref|xref|obj|\0[^\s]/g) ||
+      (sampleText.match(/[^\x20-\x7E\r\n]/g)?.length || 0) > 200
+    ) {
+      return `This PDF appears to be encrypted, secured, or contains binary data that cannot be extracted as text.
+
+Please try one of the following options:
+1. Open the PDF in a PDF reader application and copy/paste the text directly
+2. Upload a different PDF that contains directly extractable text
+3. Use a text file format instead (.txt)
+
+For medical documents, you can also manually enter the key patient information.`;
+    }
+    
     // We'll use a multi-stage approach for reliable text extraction
     console.log('Starting enhanced PDF text extraction process...');
     
-    // Function to clean text
+    // Function to clean text - VERY strict version that only allows alphanumeric + basic punctuation
     const cleanText = (text: string): string => {
-      return text
-        // Remove non-printable characters and most symbols
-        .replace(/[^\x20-\x7E\r\n]/g, '')
-        // Fix common PDF encoding issues
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '')
-        .replace(/\\\\/g, '\\')
-        // Replace multiple spaces with single spaces
+      // First, check if we're dealing with binary garbage
+      if (text.includes('endstream') || text.includes('endobj') || text.includes('startxref')) {
+        return 'This PDF contains binary content that cannot be directly converted to text.';
+      }
+      
+      // SUPER AGGRESSIVE CLEANING - only keep basic alphanumeric & punctuation
+      let result = text
+        // First keep only basic alphanumeric chars and common punctuation
+        .replace(/[^a-zA-Z0-9\s.,;:!?()\-"']/g, ' ')
+        // Replace multiple spaces
         .replace(/\s+/g, ' ')
-        // Remove spaces at the beginning and end of lines
-        .replace(/\s+\n/g, '\n')
-        .replace(/\n\s+/g, '\n')
-        // Normalize consecutive newlines
-        .replace(/\n+/g, '\n\n')
-        // Remove any remaining non-printable characters
-        .replace(/[\x00-\x1F\x7F-\xFF]/g, '')
-        // Remove isolated special characters that aren't part of words
-        .replace(/\s[\^\*\|\{\}\[\]<>~`]+\s/g, ' ')
-        // Remove lines that have more special characters than text
-        .split('\n')
-        .filter(line => {
-          const specialCharCount = (line.match(/[^a-zA-Z0-9\s,.;:!?()]/g) || []).length;
-          const textLength = line.trim().length;
-          // Keep lines with low special char ratio or sufficient text length
-          return textLength === 0 || specialCharCount / textLength < 0.3 || textLength > 20;
-        })
-        .join('\n')
-        // Remove duplicate spaces
+        // Look for letter-number combinations that would indicate binary content
+        .replace(/([a-zA-Z][0-9]{2,}|[0-9]{2,}[a-zA-Z])/g, ' ')
+        // Replace anything that looks like a filename or path
+        .replace(/[a-zA-Z0-9]+\.[a-zA-Z0-9]{2,4}/g, ' ')
+        // Replace short tokens with spaces
+        .replace(/\b[a-zA-Z]{1,2}\b/g, ' ')
+        // Replace digits with spaces
+        .replace(/\b[0-9]+\b/g, ' ')
+        // Replace multiple spaces again
         .replace(/\s+/g, ' ')
         .trim();
+      
+      // For binary PDFs with very little actual text, this will leave almost nothing
+      if (result.length < text.length * 0.1) {
+        return 'This PDF contains mostly binary or encoded content that cannot be processed as text.';
+      }
+      
+      // Process line by line to remove any remaining garbage
+      const lines = result.split('\n');
+      const cleanedLines = lines.filter(line => {
+        // Remove short lines
+        if (line.trim().length < 5) return false;
+        
+        // Count real words (3+ chars) vs. total tokens
+        const tokens = line.trim().split(/\s+/);
+        const realWords = tokens.filter(token => token.length > 2 && /[a-zA-Z]{3,}/.test(token)).length;
+        
+        // If less than 30% real words, it's probably garbage
+        return realWords / Math.max(1, tokens.length) > 0.3;
+      });
+      
+      result = cleanedLines.join('\n');
+      
+      // Finally, check if the result has enough content to be useful
+      if (result.trim().length < 50) {
+        return 'This PDF does not contain extractable text or contains only binary data.';
+      }
+      
+      return result;
     };
     
     // Stage 1: Direct text extraction from PDF text markers

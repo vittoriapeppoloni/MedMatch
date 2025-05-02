@@ -83,13 +83,21 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
             form.setValue('medicalText', result.text);
           } catch (error) {
             console.error('Error processing PDF:', error);
+            const errorMessage = error.toString().includes('400') ? 
+              'The server rejected this PDF because it appears to be encrypted or contains binary data.' :
+              'Error extracting text from the PDF.';
+            
             form.setValue('medicalText', 
-            `Error extracting text from PDF. Our server couldn't process this file.
+            `${errorMessage}
 
-Please try:
-1. Copy and paste the text directly from your PDF reader application
-2. Try a different PDF file
-3. Use a plain text (.txt) file instead`);
+This PDF appears to be encrypted, secured, or contains binary data that cannot be extracted as text.
+
+Please try one of the following options:
+1. Open the PDF in a PDF reader application and copy/paste the text directly
+2. Upload a different PDF that contains directly extractable text
+3. Use a text file format instead (.txt)
+
+For medical documents, you can also manually enter the key patient information.`);
           }
         } else {
           // For non-PDF files, use standard text extraction
