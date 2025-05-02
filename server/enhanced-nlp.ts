@@ -6,57 +6,6 @@
 
 import natural from 'natural';
 
-// Create tokenizer for text processing
-const tokenizer = new natural.WordTokenizer();
-
-// Define language-specific terms and patterns
-const languagePatterns = {
-  english: {
-    diagnosis: [
-      'diagnosed with', 'diagnosis', 'cancer', 'carcinoma', 'tumor', 'malignancy',
-      'adenocarcinoma', 'sarcoma', 'lymphoma', 'leukemia', 'melanoma', 'pathology'
-    ],
-    stage: [
-      'stage', 'grade', 'TNM', 'T1', 'T2', 'T3', 'T4', 'N0', 'N1', 'N2', 'M0', 'M1',
-      'metastatic', 'metastasis', 'metastases', 'IV', 'III', 'II', 'I', 'stadio'
-    ],
-    subtype: [
-      'ER', 'PR', 'HER2', 'triple negative', 'EGFR', 'ALK', 'ROS1', 'BRAF', 
-      'KRAS', 'NRAS', 'MSI', 'PD-L1', 'hormone receptor', 'hormone-positive',
-      'TPS', 'G12C', 'STK11', 'NGS', 'mutated'
-    ],
-    treatment: [
-      'chemotherapy', 'radiation', 'radiotherapy', 'surgery', 'resection', 'immunotherapy',
-      'treated with', 'therapy', 'treatment', 'regimen', 'administered', 'received',
-      'pembrolizumab', 'nivolumab', 'atezolizumab', 'durvalumab', 'ipilimumab'
-    ]
-  },
-  italian: {
-    diagnosis: [
-      'diagnosi', 'diagnosticato', 'tumore', 'carcinoma', 'neoplasia', 'cancro',
-      'adenocarcinoma', 'sarcoma', 'linfoma', 'leucemia', 'melanoma', 'malattia',
-      'patologia', 'oncologica', 'positiva', 'primitività', 'primitività', 'fenotipo',
-      'istologico', 'biopsia', 'citologico'
-    ],
-    stage: [
-      'stadio', 'grado', 'TNM', 'T1', 'T2', 'T3', 'T4', 'N0', 'N1', 'N2', 'M0', 'M1',
-      'metastatico', 'metastasi', 'IV', 'III', 'II', 'I', 'avanzato', 'localizzato'
-    ],
-    subtype: [
-      'ER', 'PR', 'HER2', 'triplo negativo', 'EGFR', 'ALK', 'ROS1', 'BRAF', 
-      'KRAS', 'NRAS', 'MSI', 'PD-L1', 'recettore ormonale', 'ormon-positivo',
-      'fenotipo', 'TPS', 'G12C', 'STK11', 'NGS', 'mutato', 'immunofenotipo'
-    ],
-    treatment: [
-      'chemioterapia', 'radioterapia', 'chirurgia', 'resezione', 'immunoterapia',
-      'trattato con', 'terapia', 'trattamento', 'regime', 'somministrato', 'ricevuto',
-      'pembrolizumab', 'nivolumab', 'atezolizumab', 'durvalumab', 'ipilimumab',
-      'chemio', 'radio', 'terapia'
-    ]
-  }
-};
-
-// Define medical entity types
 export enum EntityType {
   DIAGNOSIS = 'diagnosis',
   STAGE = 'stage',
@@ -79,143 +28,138 @@ interface MedicalEntity {
   context?: string;
 }
 
-// Specific cancer types in English and Italian
-const cancerTypes = [
-  'lung cancer', 'breast cancer', 'prostate cancer', 'colorectal cancer', 'melanoma',
-  'lymphoma', 'leukemia', 'pancreatic cancer', 'ovarian cancer', 'liver cancer',
-  'bladder cancer', 'kidney cancer', 'brain cancer', 'gastric cancer', 'esophageal cancer',
-  'head and neck cancer', 'sarcoma', 'myeloma', 'thyroid cancer', 'cervical cancer',
-  'endometrial cancer', 'uterine cancer', 'testicular cancer', 'mesothelioma',
-  
-  'cancro al polmone', 'tumore al polmone', 'carcinoma polmonare', 'carcinoma del polmone',
-  'cancro al seno', 'tumore al seno', 'cancro della mammella', 'carcinoma mammario',
-  'cancro alla prostata', 'tumore alla prostata', 'cancro del colon-retto', 'cancro colorettale',
-  'melanoma', 'linfoma', 'leucemia', 'cancro al pancreas', 'tumore al pancreas',
-  'cancro ovarico', 'tumore ovarico', 'cancro al fegato', 'tumore al fegato', 'epatocarcinoma',
-  'cancro alla vescica', 'tumore alla vescica', 'cancro al rene', 'tumore al rene',
-  'tumore cerebrale', 'glioblastoma', 'cancro allo stomaco', 'tumore allo stomaco',
-  'cancro all\'esofago', 'tumore all\'esofago', 'cancro testa-collo', 'sarcoma',
-  'mieloma', 'cancro alla tiroide', 'tumore alla tiroide', 'cancro della cervice',
-  'cancro dell\'endometrio', 'cancro dell\'utero', 'tumore testicolare', 'mesotelioma'
-];
-
-// Specific biomarkers
-const biomarkers = [
-  'PD-L1', 'EGFR', 'ALK', 'ROS1', 'BRAF', 'KRAS', 'NRAS', 'HER2', 'BRCA1', 'BRCA2',
-  'MSI', 'TMB', 'ER', 'PR', 'AR', 'PSA', 'CEA', 'CA125', 'CA19-9', 'AFP', 'MET',
-  'RET', 'NTRK', 'CDK4/6', 'IDH1', 'IDH2', 'JAK2', 'PIK3CA', 'PTEN', 'APC', 'TP53',
-  'STK11', 'G12C', 'immunofenotipo', 'TPS'
-];
+// Initialize natural language processing utilities
+const tokenizer = new natural.WordTokenizer();
+const stemmer = natural.PorterStemmer;
 
 /**
  * Helper function to normalize Italian text
  */
 function normalizeItalianText(text: string): string {
-  return text
-    .replace(/à/g, 'a')
-    .replace(/è|é/g, 'e')
-    .replace(/ì/g, 'i')
-    .replace(/ò/g, 'o')
-    .replace(/ù/g, 'u')
-    .trim();
+  // Replace common Italian abbreviations
+  const normalizedText = text
+    .replace(/\bp\.\s*y\./gi, 'pack years')
+    .replace(/\bpz\./gi, 'paziente')
+    .replace(/\bdrssa\./gi, 'dottoressa')
+    .replace(/\bdott\./gi, 'dottore')
+    .replace(/\bprof\./gi, 'professore')
+    .replace(/\bdx(\s+di)?\b/gi, 'diagnosi di')
+    .replace(/\bdx\b/gi, 'diagnosi')
+    .replace(/\betp\b/gi, 'età')
+    .replace(/\bf\.r\./gi, 'fattori di rischio');
+    
+  return normalizedText;
 }
 
 /**
  * Extract medical entities from text
  */
 export function extractEntities(text: string): MedicalEntity[] {
-  // Normalize text (lowercase, trim, etc.)
+  // Normalize text to handle Italian abbreviations
   const normalizedText = normalizeItalianText(text);
   
-  // Split text into sentences for better context
-  const sentences = normalizedText
-    .replace(/([.!?])\s*(?=[A-Z])/g, "$1|")
-    .split("|");
-  
-  // Entity extraction
+  const sentences = normalizedText.split(/[.!?;]+/);
   const entities: MedicalEntity[] = [];
   
-  sentences.forEach(sentence => {
+  let positionOffset = 0;
+  for (const sentence of sentences) {
+    if (!sentence.trim()) {
+      positionOffset += sentence.length + 1;
+      continue;
+    }
+    
     const originalSentence = sentence.trim();
     const lowerSentence = originalSentence.toLowerCase();
     
-    // Extract cancer diagnosis
-    const diagnosisEntities = extractCancerDiagnosis(lowerSentence, originalSentence);
-    entities.push(...diagnosisEntities);
-    
     // Extract cancer types
-    const cancerTypeEntities = extractCancerTypes(lowerSentence, originalSentence);
-    entities.push(...cancerTypeEntities);
+    entities.push(...extractCancerTypes(lowerSentence, originalSentence).map(entity => {
+      return {
+        ...entity,
+        position: entity.position + positionOffset
+      };
+    }));
     
     // Extract biomarkers
-    const biomarkerEntities = extractBiomarkers(lowerSentence, originalSentence);
-    entities.push(...biomarkerEntities);
+    entities.push(...extractBiomarkers(lowerSentence, originalSentence).map(entity => {
+      return {
+        ...entity,
+        position: entity.position + positionOffset
+      };
+    }));
     
-    // Extract treatment information
-    const treatmentEntities = extractTreatments(lowerSentence, originalSentence);
-    entities.push(...treatmentEntities);
+    // Extract diagnosis details
+    entities.push(...extractCancerDiagnosis(lowerSentence, originalSentence).map(entity => {
+      return {
+        ...entity,
+        position: entity.position + positionOffset
+      };
+    }));
+    
+    // Extract treatments
+    entities.push(...extractTreatments(lowerSentence, originalSentence).map(entity => {
+      return {
+        ...entity,
+        position: entity.position + positionOffset
+      };
+    }));
     
     // Extract comorbidities
-    const comorbidityEntities = extractComorbidities(lowerSentence, originalSentence);
-    entities.push(...comorbidityEntities);
+    entities.push(...extractComorbidities(lowerSentence, originalSentence).map(entity => {
+      return {
+        ...entity,
+        position: entity.position + positionOffset
+      };
+    }));
     
-    // Extract dates
-    const datePattern = /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/g;
-    let dateMatch;
-    while ((dateMatch = datePattern.exec(lowerSentence)) !== null) {
+    // Extract demographics - age (Italian specific)
+    const ageMatchItalian = lowerSentence.match(/(?:paziente\s+di|età\s+di|età)\s+(\d{1,3})\s+(?:anni|aa)/i);
+    if (ageMatchItalian) {
       entities.push({
-        type: EntityType.DATE,
-        value: dateMatch[0],
-        position: dateMatch.index,
-        context: extractContext(lowerSentence, dateMatch.index, 30)
+        type: EntityType.AGE,
+        value: ageMatchItalian[1],
+        position: positionOffset + lowerSentence.indexOf(ageMatchItalian[0]),
+        context: extractContext(normalizedText, positionOffset + lowerSentence.indexOf(ageMatchItalian[0]), 50)
       });
     }
     
-    // Extract age
-    const agePatterns = [
-      /\b(\d{1,2})\s*(years|year|anni|anno|yo|y\/o|yr old|years old)\b/i,
-      /\betà:?\s*(\d{1,2})/i,
-      /\betà di\s*(\d{1,2})/i,
-      /\b(\d{1,2})\s*anni\b/i
-    ];
+    // Extract demographics - gender (Italian specific)
+    if (lowerSentence.includes('sesso femminile') || 
+        lowerSentence.includes('paziente di sesso femminile') ||
+        lowerSentence.includes('donna')) {
+      entities.push({
+        type: EntityType.GENDER,
+        value: 'Female',
+        position: positionOffset,
+        context: extractContext(normalizedText, positionOffset, 30)
+      });
+    } else if (lowerSentence.includes('sesso maschile') || 
+              lowerSentence.includes('paziente di sesso maschile') ||
+              lowerSentence.includes('uomo')) {
+      entities.push({
+        type: EntityType.GENDER,
+        value: 'Male',
+        position: positionOffset,
+        context: extractContext(normalizedText, positionOffset, 30)
+      });
+    }
     
-    for (const pattern of agePatterns) {
-      const ageMatch = lowerSentence.match(pattern);
-      if (ageMatch) {
+    // Extract dates
+    const dateMatches = lowerSentence.match(/\b(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})\b/g);
+    if (dateMatches) {
+      for (const dateMatch of dateMatches) {
         entities.push({
-          type: EntityType.AGE,
-          value: ageMatch[1],
-          position: ageMatch.index || 0,
-          context: extractContext(lowerSentence, ageMatch.index || 0, 20)
+          type: EntityType.DATE,
+          value: dateMatch,
+          position: positionOffset + lowerSentence.indexOf(dateMatch),
+          context: extractContext(normalizedText, positionOffset + lowerSentence.indexOf(dateMatch), 50)
         });
-        break;  // Stop after finding the first age
       }
     }
     
-    // Extract gender
-    const genderPatterns = [
-      { pattern: /\b(male|man|m)\b/i, value: 'Male' },
-      { pattern: /\b(female|woman|f)\b/i, value: 'Female' },
-      { pattern: /\b(uomo|maschio)\b/i, value: 'Male' },
-      { pattern: /\b(donna|femmina)\b/i, value: 'Female' },
-      { pattern: /\bsesso:?\s*m\b/i, value: 'Male' },
-      { pattern: /\bsesso:?\s*f\b/i, value: 'Female' }
-    ];
-    
-    for (const pattern of genderPatterns) {
-      const genderMatch = lowerSentence.match(pattern.pattern);
-      if (genderMatch) {
-        entities.push({
-          type: EntityType.GENDER,
-          value: pattern.value,
-          position: genderMatch.index || 0,
-          context: extractContext(lowerSentence, genderMatch.index || 0, 15)
-        });
-        break;
-      }
-    }
-  });
+    positionOffset += sentence.length + 1;
+  }
   
+  console.log(`Extracted entities: ${entities.length}`);
   return entities;
 }
 
@@ -225,46 +169,71 @@ export function extractEntities(text: string): MedicalEntity[] {
 function extractCancerTypes(lowerSentence: string, originalSentence: string): MedicalEntity[] {
   const entities: MedicalEntity[] = [];
   
-  for (const cancerType of cancerTypes) {
-    if (lowerSentence.includes(cancerType)) {
-      const position = lowerSentence.indexOf(cancerType);
+  // Lung cancer variants
+  const lungCancerPatterns = [
+    /(?:carcinoma|adenocarcinoma|cancro)\s+(?:del|polmonare|al|ai)\s+polmon/i,
+    /(?:tumore|neoplasia)\s+(?:del|polmonare|al|ai)\s+polmon/i,
+    /nsclc/i,
+    /carcinoma polmonare/i,
+    /carcinoma microcitico polmonare/i,
+    /adenocarcinoma polmonare/i,
+    /adenocarcinoma del polmone/i,
+  ];
+  
+  for (const pattern of lungCancerPatterns) {
+    const match = lowerSentence.match(pattern);
+    if (match) {
       entities.push({
         type: EntityType.CANCER_TYPE,
-        value: cancerType,
-        position: position,
-        context: extractContext(lowerSentence, position, 40)
+        value: 'Lung Cancer',
+        position: lowerSentence.indexOf(match[0])
       });
+      
+      // Add more specific detail if available
+      if (match[0].includes('adenocarcinoma')) {
+        entities.push({
+          type: EntityType.CANCER_TYPE,
+          value: 'Lung Adenocarcinoma',
+          position: lowerSentence.indexOf(match[0])
+        });
+      } else if (match[0].includes('microcitico')) {
+        entities.push({
+          type: EntityType.CANCER_TYPE,
+          value: 'Small Cell Lung Cancer',
+          position: lowerSentence.indexOf(match[0])
+        });
+      } else if (match[0].includes('nsclc') || match[0].includes('non microcitico')) {
+        entities.push({
+          type: EntityType.CANCER_TYPE,
+          value: 'Non-Small Cell Lung Cancer',
+          position: lowerSentence.indexOf(match[0])
+        });
+      }
     }
   }
   
-  // Special case for Italian documents: look for "polmone" or "torace" as a clue for lung cancer
-  if (lowerSentence.includes("polmone") || 
-      lowerSentence.includes("torace") || 
-      lowerSentence.includes("polmonare") ||
-      lowerSentence.includes("vie aeree") ||
-      lowerSentence.includes("bronc")) {
-    
-    if (!entities.some(e => e.type === EntityType.CANCER_TYPE && 
-                     (e.value.includes("polmon") || e.value.includes("lung")))) {
-      // Look for association with cancer terms
-      const cancerTerms = ["carcinoma", "adenocarcinoma", "tumore", "cancro", "neoplasia", "maligno"];
-      let context = "";
-      let position = 0;
+  // Breast cancer variants
+  const breastCancerPatterns = [
+    /(?:carcinoma|adenocarcinoma|cancro)\s+(?:della|mammario|mammella|al|alla)\s+mammella/i,
+    /(?:tumore|neoplasia)\s+(?:della|mammario|mammella|al|alla)\s+mammella/i,
+    /carcinoma mammario/i,
+    /carcinoma duttale/i
+  ];
+  
+  for (const pattern of breastCancerPatterns) {
+    const match = lowerSentence.match(pattern);
+    if (match) {
+      entities.push({
+        type: EntityType.CANCER_TYPE,
+        value: 'Breast Cancer',
+        position: lowerSentence.indexOf(match[0])
+      });
       
-      for (const term of cancerTerms) {
-        if (lowerSentence.includes(term)) {
-          position = lowerSentence.indexOf(term);
-          context = extractContext(lowerSentence, position, 50);
-          break;
-        }
-      }
-      
-      if (context) {
+      if (match[0].includes('duttale')) {
         entities.push({
           type: EntityType.CANCER_TYPE,
-          value: "carcinoma polmonare",
-          position: position,
-          context: context
+          value: 'Ductal Breast Carcinoma',
+          position: lowerSentence.indexOf(match[0])
         });
       }
     }
@@ -279,60 +248,69 @@ function extractCancerTypes(lowerSentence: string, originalSentence: string): Me
 function extractBiomarkers(lowerSentence: string, originalSentence: string): MedicalEntity[] {
   const entities: MedicalEntity[] = [];
   
-  for (const biomarker of biomarkers) {
-    // Handle both biomarker as standalone and as part of a word
-    const biomarkerRegex = new RegExp(`\\b${biomarker}\\b|\\b${biomarker}[-\\s]+(positive|negative|\\+|\\-|positivo|negativo|mutato)`, 'i');
-    const match = lowerSentence.match(biomarkerRegex);
-    
-    if (match) {
-      const position = match.index || 0;
-      const context = extractContext(lowerSentence, position, 50);
-      
-      // Try to determine status (positive/negative/mutated)
-      let biomarkerValue = biomarker;
-      const statusMatches = context.match(/(positive|negative|\\+|\\-|positivo|negativo|mutato)/i);
-      
-      if (statusMatches) {
-        biomarkerValue = `${biomarker} ${statusMatches[0]}`;
-      }
-      
-      // Look for percentage expression
-      const percentMatch = context.match(/(\d+)(\s*%|\s*percent|\s*percento)/i);
-      if (percentMatch) {
-        biomarkerValue = `${biomarkerValue} ${percentMatch[0]}`;
-      }
-      
-      entities.push({
-        type: EntityType.BIOMARKER,
-        value: biomarkerValue,
-        position: position,
-        context: context
-      });
-    }
+  // PD-L1 expression
+  const pdl1Pattern = /pd-?l1\s+(?:espressione|expression|expressione)?(?:\s+del)?\s+(\d+)%/i;
+  const pdl1Match = lowerSentence.match(pdl1Pattern);
+  if (pdl1Match) {
+    entities.push({
+      type: EntityType.BIOMARKER,
+      value: `PD-L1 ${pdl1Match[1]}%`,
+      position: lowerSentence.indexOf(pdl1Match[0])
+    });
   }
   
-  // Special cases for common mutation patterns
-  const mutationPatterns = [
-    /\b(KRAS|EGFR|BRAF|ALK|ROS1|MET|RET|HER2|FGFR)[-\s]*(mutation|mutated|mutation positive|mutato|mutazione)/i,
-    /\bmutation\s+(positive|negative|result)\s+for\s+([A-Za-z0-9]+)/i,
-    /\bmutated\s+([A-Za-z0-9]+)/i,
-    /\bmutazione\s+([A-Za-z0-9]+)/i,
-    /\b([A-Za-z0-9]+)\s+mutato/i,
-    /\b(G12C|I303S|G163C|V600E|L858R|T790M|fusion)/i
+  // KRAS mutations
+  const krasPattern = /kras\s+((?:g\d+[a-z])|(?:mutato)|(?:mutation)|(?:mutazione))/i;
+  const krasMatch = lowerSentence.match(krasPattern);
+  if (krasMatch) {
+    entities.push({
+      type: EntityType.BIOMARKER,
+      value: `KRAS ${krasMatch[1]}`,
+      position: lowerSentence.indexOf(krasMatch[0])
+    });
+  }
+  
+  // Simple KRAS mention
+  if (lowerSentence.includes('kras')) {
+    const position = lowerSentence.indexOf('kras');
+    entities.push({
+      type: EntityType.BIOMARKER,
+      value: 'KRAS',
+      position
+    });
+  }
+  
+  // G12C mention
+  if (lowerSentence.includes('g12c')) {
+    const position = lowerSentence.indexOf('g12c');
+    entities.push({
+      type: EntityType.BIOMARKER,
+      value: 'G12C',
+      position
+    });
+  }
+  
+  // Other common mutations
+  const commonMutations = [
+    { pattern: /egfr/i, name: 'EGFR' },
+    { pattern: /alk/i, name: 'ALK' },
+    { pattern: /ros1/i, name: 'ROS1' },
+    { pattern: /braf/i, name: 'BRAF' },
+    { pattern: /met/i, name: 'MET' },
+    { pattern: /ret/i, name: 'RET' },
+    { pattern: /ntrk/i, name: 'NTRK' },
+    { pattern: /her2/i, name: 'HER2' },
+    { pattern: /erbb2/i, name: 'ERBB2' },
+    { pattern: /stk11/i, name: 'STK11' }
   ];
   
-  for (const pattern of mutationPatterns) {
-    const matches = lowerSentence.matchAll(new RegExp(pattern, 'gi'));
-    for (const match of Array.from(matches)) {
-      if (match.index !== undefined) {
-        const mutationValue = match[0];
-        entities.push({
-          type: EntityType.BIOMARKER,
-          value: mutationValue,
-          position: match.index,
-          context: extractContext(lowerSentence, match.index, 50)
-        });
-      }
+  for (const mutation of commonMutations) {
+    if (lowerSentence.match(mutation.pattern)) {
+      entities.push({
+        type: EntityType.BIOMARKER,
+        value: mutation.name,
+        position: lowerSentence.indexOf(mutation.name.toLowerCase())
+      });
     }
   }
   
@@ -345,121 +323,51 @@ function extractBiomarkers(lowerSentence: string, originalSentence: string): Med
 function extractCancerDiagnosis(lowerSentence: string, originalSentence: string): MedicalEntity[] {
   const entities: MedicalEntity[] = [];
   
-  // Check both English and Italian patterns
+  // Direct diagnosis statement
   const diagnosisPatterns = [
-    ...languagePatterns.english.diagnosis,
-    ...languagePatterns.italian.diagnosis
+    /diagnosi\s+di\s+([^,\.;:]+)/i,
+    /dx\s+di\s+([^,\.;:]+)/i,
+    /(?:paziente\s+(?:con|affetto\s+da))\s+([^,\.;:]+)/i
   ];
   
-  // Check for diagnosis terms
-  for (const term of diagnosisPatterns) {
-    if (lowerSentence.includes(term)) {
-      const position = lowerSentence.indexOf(term);
-      const context = extractContext(lowerSentence, position, 50);
-      
+  for (const pattern of diagnosisPatterns) {
+    const match = lowerSentence.match(pattern);
+    if (match) {
       entities.push({
         type: EntityType.DIAGNOSIS,
-        value: term,
-        position: position,
-        context: context
+        value: match[1].trim(),
+        position: lowerSentence.indexOf(match[0])
       });
-      
-      // Look for stage information near diagnosis
-      const stagePatterns = [
-        ...languagePatterns.english.stage,
-        ...languagePatterns.italian.stage
-      ];
-      
-      for (const stageTerm of stagePatterns) {
-        if (context.includes(stageTerm)) {
-          const stagePosition = context.indexOf(stageTerm);
-          const stageContext = extractContext(context, stagePosition, 20);
-          
-          // Try to extract stage with numbers (Stage I, II, III, IV or T1N0M0, etc.)
-          const stageRegex = new RegExp(
-            `${stageTerm}\\s*[:-]?\\s*(\\w{1,2})\\b|${stageTerm}\\s*(I{1,4}|IV|V{1,3}|T\\d{1}N\\d{1}M\\d{1})\\b`,
-            'i'
-          );
-          const stageMatch = stageContext.match(stageRegex);
-          
-          if (stageMatch) {
-            const stageValue = (stageMatch[1] || stageMatch[2]).toUpperCase();
-            entities.push({
-              type: EntityType.STAGE,
-              value: stageValue,
-              position: stagePosition + position,
-              context: stageContext
-            });
-          } else {
-            entities.push({
-              type: EntityType.STAGE,
-              value: stageTerm,
-              position: stagePosition + position,
-              context: stageContext
-            });
-          }
-        }
-      }
-      
-      // Look for subtype information
-      const subtypePatterns = [
-        ...languagePatterns.english.subtype,
-        ...languagePatterns.italian.subtype
-      ];
-      
-      for (const subtypeTerm of subtypePatterns) {
-        if (context.includes(subtypeTerm)) {
-          const subtypePosition = context.indexOf(subtypeTerm);
-          const subtypeContext = extractContext(context, subtypePosition, 30);
-          
-          // Extract status (positive/negative if available)
-          const statusRegex = new RegExp(
-            `${subtypeTerm}\\s*[:-]?\\s*(positive|negative|\\+|\\-|positivo|negativo)\\b`,
-            'i'
-          );
-          const statusMatch = subtypeContext.match(statusRegex);
-          
-          if (statusMatch) {
-            const subtypeValue = `${subtypeTerm} ${statusMatch[1]}`;
-            entities.push({
-              type: EntityType.SUBTYPE,
-              value: subtypeValue,
-              position: subtypePosition + position,
-              context: subtypeContext
-            });
-          } else {
-            entities.push({
-              type: EntityType.SUBTYPE,
-              value: subtypeTerm,
-              position: subtypePosition + position,
-              context: subtypeContext
-            });
-          }
-        }
-      }
     }
   }
   
-  // Check for specific diagnosis patterns in Italian medical reports
-  const italianDiagnosisPatterns = [
-    /adenocarcinoma\s+([a-z]+)/i,
-    /carcinoma\s+([a-z]+)/i,
-    /tumore\s+([a-z]+)/i,
-    /neoplasia\s+([a-z]+)/i,
-    /diagnosi\s+([a-z\s]+)/i,
-    /malattia\s+oncologica/i
-  ];
+  // TNM staging
+  const tnmPattern = /(?:TNM|tnm|staging)\s+(?:alla\s+diagnosi)?:?\s*(?:[cp]?)(T\d+[a-z]*N\d+[a-z]*M\d+[a-z]*)/i;
+  const tnmMatch = lowerSentence.match(tnmPattern);
+  if (tnmMatch) {
+    entities.push({
+      type: EntityType.SUBTYPE,
+      value: tnmMatch[1],
+      position: lowerSentence.indexOf(tnmMatch[0])
+    });
+  }
   
-  for (const pattern of italianDiagnosisPatterns) {
-    const match = lowerSentence.match(pattern);
-    if (match && match.index !== undefined) {
-      entities.push({
-        type: EntityType.DIAGNOSIS,
-        value: match[0],
-        position: match.index,
-        context: extractContext(lowerSentence, match.index, 50)
-      });
-    }
+  // Stage information
+  const stagePattern = /(?:stadio|stage)\s+(I{1,3}V?|IV|1|2|3|4)/i;
+  const stageMatch = lowerSentence.match(stagePattern);
+  if (stageMatch) {
+    let stage = stageMatch[1].toUpperCase();
+    // Convert numeric to Roman numerals if needed
+    if (stage === '1') stage = 'I';
+    if (stage === '2') stage = 'II';
+    if (stage === '3') stage = 'III';
+    if (stage === '4') stage = 'IV';
+    
+    entities.push({
+      type: EntityType.STAGE,
+      value: `Stage ${stage}`,
+      position: lowerSentence.indexOf(stageMatch[0])
+    });
   }
   
   return entities;
@@ -471,77 +379,96 @@ function extractCancerDiagnosis(lowerSentence: string, originalSentence: string)
 function extractTreatments(lowerSentence: string, originalSentence: string): MedicalEntity[] {
   const entities: MedicalEntity[] = [];
   
-  // Check both English and Italian patterns
-  const treatmentPatterns = [
-    ...languagePatterns.english.treatment,
-    ...languagePatterns.italian.treatment
-  ];
-  
-  // Check for treatment terms
-  for (const term of treatmentPatterns) {
-    if (lowerSentence.includes(term)) {
-      const position = lowerSentence.indexOf(term);
-      const context = extractContext(lowerSentence, position, 50);
-      
-      entities.push({
-        type: EntityType.TREATMENT,
-        value: term,
-        position: position,
-        context: context
-      });
-    }
+  // Chemotherapy
+  if (lowerSentence.includes('chemioterapia') || 
+      lowerSentence.includes('chemio') || 
+      lowerSentence.includes('chemioterapico')) {
+    entities.push({
+      type: EntityType.TREATMENT,
+      value: 'Chemotherapy',
+      position: lowerSentence.indexOf('chemio')
+    });
   }
   
-  // Extract medications
-  const medicationPatterns = [
-    /\b(taking|takes|took|prescribed|started on|continue[ds]?)\s+([a-z]+)\b/i,
-    /\b(assume|prende|assumeva|prescritto|iniziato con|terapia con)\s+([a-z]+)\b/i,
-    /\b([a-z]+)\s+(mg|mcg|g)\b/i,
-    /\bin\s+(?:therapy|treatment|terapia|trattamento)\s+with\s+([a-z]+)\b/i,
-    /\bin\s+(?:therapy|treatment|terapia|trattamento)\s+con\s+([a-z]+)\b/i
-  ];
+  // Immunotherapy
+  if (lowerSentence.includes('immunoterapia') || 
+      lowerSentence.includes('immuno') || 
+      lowerSentence.includes('immunoterapico')) {
+    entities.push({
+      type: EntityType.TREATMENT,
+      value: 'Immunotherapy',
+      position: lowerSentence.includes('immunoterapia') ? 
+                lowerSentence.indexOf('immunoterapia') : 
+                lowerSentence.indexOf('immuno')
+    });
+  }
   
-  for (const pattern of medicationPatterns) {
-    const matches = lowerSentence.matchAll(new RegExp(pattern, 'gi'));
-    for (const match of Array.from(matches)) {
-      if (match.index !== undefined && match[2]) {
-        const medication = match[2].toLowerCase();
-        // Skip common words that might match the pattern but aren't medications
-        if (medication.length < 4 || 
-            ['the', 'and', 'with', 'for', 'con', 'per', 'che', 'del', 'sul'].includes(medication)) {
-          continue;
-        }
-        
-        entities.push({
-          type: EntityType.MEDICATION,
-          value: medication,
-          position: match.index,
-          context: extractContext(lowerSentence, match.index, 30)
-        });
-      }
-    }
+  // Chemo-immunotherapy
+  if (lowerSentence.includes('chemio-immunoterapia') || 
+      lowerSentence.includes('chemioimmunoterapia')) {
+    entities.push({
+      type: EntityType.TREATMENT,
+      value: 'Chemo-immunotherapy',
+      position: lowerSentence.includes('chemio-immunoterapia') ?
+                lowerSentence.indexOf('chemio-immunoterapia') :
+                lowerSentence.indexOf('chemioimmunoterapia')
+    });
+  }
+  
+  // Surgery
+  if (lowerSentence.includes('intervento chirurgico') || 
+      lowerSentence.includes('chirurgia') ||
+      lowerSentence.includes('lobectomia') ||
+      lowerSentence.includes('pneumectomia') ||
+      lowerSentence.includes('resection')) {
+    entities.push({
+      type: EntityType.TREATMENT,
+      value: 'Surgery',
+      position: lowerSentence.indexOf('chirurg')
+    });
+  }
+  
+  // Radiation therapy
+  if (lowerSentence.includes('radioterapia') || 
+      lowerSentence.includes('radiotherapia') || 
+      lowerSentence.includes('rt ')) {
+    entities.push({
+      type: EntityType.TREATMENT,
+      value: 'Radiation Therapy',
+      position: lowerSentence.indexOf('radio')
+    });
   }
   
   // Common medication names
-  const commonMedications = [
-    'aspirin', 'ibuprofen', 'paracetamol', 'acetaminophen', 'metformin', 'atorvastatin',
-    'lisinopril', 'amlodipine', 'metoprolol', 'levothyroxine', 'albuterol', 'prednisone',
-    'omeprazole', 'gabapentin', 'losartan', 'hydrochlorothiazide', 'paclitaxel', 'docetaxel',
-    'cisplatin', 'carboplatin', 'tamoxifen', 'trastuzumab', 'rituximab', 'bevacizumab',
-    'pembrolizumab', 'nivolumab', 'cyclophosphamide', 'doxorubicin', 'vincristine',
-    'aspirina', 'ibuprofene', 'paracetamolo', 'metformina', 'atorvastatina', 'acido acetilsalicilico',
-    'amoxicillina', 'simvastatina', 'pantoprazolo', 'diazepam', 'lisinopril', 'pemtrexed',
-    'carboplatino', 'divarasib', 'relvar', 'rolufta'
+  const medications = [
+    { pattern: /pembrolizumab/i, name: 'Pembrolizumab' },
+    { pattern: /nivolumab/i, name: 'Nivolumab' },
+    { pattern: /atezolizumab/i, name: 'Atezolizumab' },
+    { pattern: /durvalumab/i, name: 'Durvalumab' },
+    { pattern: /ipilimumab/i, name: 'Ipilimumab' },
+    { pattern: /cisplatino/i, name: 'Cisplatin' },
+    { pattern: /carboplatino/i, name: 'Carboplatin' },
+    { pattern: /docetaxel/i, name: 'Docetaxel' },
+    { pattern: /pemetrexed/i, name: 'Pemetrexed' },
+    { pattern: /gemcitabina/i, name: 'Gemcitabine' },
+    { pattern: /osimertinib/i, name: 'Osimertinib' },
+    { pattern: /erlotinib/i, name: 'Erlotinib' },
+    { pattern: /gefitinib/i, name: 'Gefitinib' },
+    { pattern: /crizotinib/i, name: 'Crizotinib' },
+    { pattern: /alectinib/i, name: 'Alectinib' },
+    { pattern: /brigatinib/i, name: 'Brigatinib' },
+    { pattern: /ceritinib/i, name: 'Ceritinib' },
+    { pattern: /lorlatinib/i, name: 'Lorlatinib' },
+    { pattern: /sotorasib/i, name: 'Sotorasib' },
+    { pattern: /adagrasib/i, name: 'Adagrasib' }
   ];
   
-  for (const medication of commonMedications) {
-    if (lowerSentence.includes(medication)) {
-      const position = lowerSentence.indexOf(medication);
+  for (const med of medications) {
+    if (lowerSentence.match(med.pattern)) {
       entities.push({
         type: EntityType.MEDICATION,
-        value: medication,
-        position: position,
-        context: extractContext(lowerSentence, position, 30)
+        value: med.name,
+        position: lowerSentence.indexOf(med.name.toLowerCase())
       });
     }
   }
@@ -555,86 +482,74 @@ function extractTreatments(lowerSentence: string, originalSentence: string): Med
 function extractComorbidities(lowerSentence: string, originalSentence: string): MedicalEntity[] {
   const entities: MedicalEntity[] = [];
   
-  // Common comorbidities in English and Italian
+  // Common comorbidities
   const comorbidities = [
-    'diabetes', 'hypertension', 'high blood pressure', 'heart disease', 'coronary artery disease',
-    'asthma', 'copd', 'chronic obstructive pulmonary disease', 'kidney disease', 'renal failure',
-    'liver disease', 'hepatic impairment', 'stroke', 'thyroid disorder', 'hypothyroidism',
-    'hyperthyroidism', 'epilepsy', 'seizure disorder', 'depression', 'anxiety', 'arthritis',
-    'osteoporosis', 'gout', 'fibromyalgia', 'anemia', 'hiv', 'hepatitis', 'autoimmune disease',
-    'lupus', 'rheumatoid arthritis', 'multiple sclerosis', 'parkinson', 'alzheimer', 'dementia',
-    'obesity', 'malnutrition', 'sleep apnea', 'crohn', 'ulcerative colitis', 'inflammatory bowel disease',
-    'diabete', 'ipertensione', 'pressione alta', 'malattie cardiache', 'asma', 'broncopneumopatia',
-    'malattia renale', 'insufficienza renale', 'cirrosi', 'epatite', 'ictus', 'disturbi tiroidei',
-    'ipotiroidismo', 'ipertiroidismo', 'epilessia', 'depressione', 'ansia', 'artrite', 'osteoporosi',
-    'gotta', 'fibromialgia', 'anemia', 'hiv', 'epatite', 'lupus', 'artrite reumatoide',
-    'sclerosi multipla', 'parkinson', 'alzheimer', 'demenza', 'obesità', 'malnutrizione',
-    'apnea notturna', 'morbo di crohn', 'colite ulcerosa', 'malattia infiammatoria intestinale'
+    { pattern: /ipertensione/i, name: 'Hypertension' },
+    { pattern: /diabete/i, name: 'Diabetes' },
+    { pattern: /asma/i, name: 'Asthma' },
+    { pattern: /bpco/i, name: 'COPD' },
+    { pattern: /enfisema/i, name: 'Emphysema' },
+    { pattern: /fibrillazione\s+atriale/i, name: 'Atrial Fibrillation' },
+    { pattern: /cardiopatia/i, name: 'Heart Disease' },
+    { pattern: /insufficienza\s+cardiaca/i, name: 'Heart Failure' },
+    { pattern: /ictus/i, name: 'Stroke' },
+    { pattern: /infarto/i, name: 'Myocardial Infarction' },
+    { pattern: /epatopatia/i, name: 'Liver Disease' },
+    { pattern: /nefropatia/i, name: 'Kidney Disease' },
+    { pattern: /insufficienza\s+renale/i, name: 'Renal Failure' },
+    { pattern: /ipotiroidismo/i, name: 'Hypothyroidism' },
+    { pattern: /ipertiroidismo/i, name: 'Hyperthyroidism' }
   ];
   
-  // Allergy related terms
-  const allergies = [
-    'allergy', 'allergic to', 'allergies', 'anaphylaxis', 'allergic reaction',
-    'allergia', 'allergico a', 'allergie', 'anafilassi', 'reazione allergica'
-  ];
-  
-  // Look for comorbidities
-  for (const condition of comorbidities) {
-    if (lowerSentence.includes(condition)) {
-      const position = lowerSentence.indexOf(condition);
+  for (const comorbidity of comorbidities) {
+    if (lowerSentence.match(comorbidity.pattern)) {
       entities.push({
         type: EntityType.COMORBIDITY,
-        value: condition,
-        position: position,
-        context: extractContext(lowerSentence, position, 30)
+        value: comorbidity.name,
+        position: lowerSentence.indexOf(comorbidity.name.toLowerCase())
       });
     }
   }
   
-  // Process Italian comorbidities section
-  if (lowerSentence.includes("comorbidità")) {
-    const position = lowerSentence.indexOf("comorbidità");
-    const comorbiditySection = lowerSentence.substring(position, position + 200);
-    const lines = comorbiditySection.split(/\n|\r|\.\s+/);
-    
-    for (const line of lines) {
-      if (line.trim().length > 5 && !line.includes("oncologiche")) {
-        entities.push({
-          type: EntityType.COMORBIDITY,
-          value: line.trim(),
-          position: position,
-          context: line.trim()
-        });
-      }
-    }
+  // Smoking status
+  if (lowerSentence.includes('ex fumatore') || lowerSentence.includes('ex fumatrice')) {
+    entities.push({
+      type: EntityType.COMORBIDITY,
+      value: 'Ex-smoker',
+      position: lowerSentence.indexOf('ex fumat')
+    });
+  } else if (lowerSentence.includes('fumatore') || lowerSentence.includes('fumatrice')) {
+    entities.push({
+      type: EntityType.COMORBIDITY,
+      value: 'Current Smoker',
+      position: lowerSentence.indexOf('fumat')
+    });
+  } else if (lowerSentence.includes('non fumatore') || lowerSentence.includes('non fumatrice')) {
+    entities.push({
+      type: EntityType.COMORBIDITY,
+      value: 'Non-smoker',
+      position: lowerSentence.indexOf('non fumat')
+    });
   }
   
-  // Look for allergies
-  for (const allergy of allergies) {
-    if (lowerSentence.includes(allergy)) {
-      const position = lowerSentence.indexOf(allergy);
-      const context = extractContext(lowerSentence, position, 40);
-      
-      // Try to extract what they're allergic to
-      const allergyToPattern = new RegExp(`${allergy}\\s+(?:to|a|al|alla|ai)\\s+([a-z\\s]+)`, 'i');
-      const allergyMatch = context.match(allergyToPattern);
-      
-      if (allergyMatch && allergyMatch[1]) {
-        entities.push({
-          type: EntityType.ALLERGY,
-          value: allergyMatch[1].trim(),
-          position: position,
-          context: context
-        });
-      } else {
-        entities.push({
-          type: EntityType.ALLERGY,
-          value: allergy,
-          position: position,
-          context: context
-        });
-      }
-    }
+  // ECOG Performance Status
+  const ecogPattern = /ecog\s+ps\s*:?\s*(\d)/i;
+  const ecogMatch = lowerSentence.match(ecogPattern);
+  if (ecogMatch) {
+    entities.push({
+      type: EntityType.COMORBIDITY,
+      value: `ECOG PS: ${ecogMatch[1]}`,
+      position: lowerSentence.indexOf(ecogMatch[0])
+    });
+  }
+  
+  // Allergies
+  if (lowerSentence.includes('allergia') || lowerSentence.includes('allergic')) {
+    entities.push({
+      type: EntityType.ALLERGY,
+      value: 'Allergies',
+      position: lowerSentence.indexOf('allerg')
+    });
   }
   
   return entities;
@@ -644,8 +559,8 @@ function extractComorbidities(lowerSentence: string, originalSentence: string): 
  * Extract context around a position in text
  */
 function extractContext(text: string, position: number, length: number): string {
-  const start = Math.max(0, position - length / 2);
-  const end = Math.min(text.length, position + length / 2);
+  const start = Math.max(0, position - Math.floor(length / 2));
+  const end = Math.min(text.length, position + Math.ceil(length / 2));
   return text.substring(start, end);
 }
 
@@ -653,6 +568,7 @@ function extractContext(text: string, position: number, length: number): string 
  * Process entities into structured medical information
  */
 function processEntities(entities: MedicalEntity[]): any {
+  // Structure to hold the extracted information
   const result = {
     diagnosis: {
       primaryDiagnosis: '',
@@ -676,90 +592,79 @@ function processEntities(entities: MedicalEntity[]): any {
     }
   };
   
-  // Process primary diagnosis with cancer type
-  const cancerTypeEntities = entities.filter(e => e.type === EntityType.CANCER_TYPE);
-  if (cancerTypeEntities.length > 0) {
-    result.diagnosis.primaryDiagnosis = cancerTypeEntities[0].value;
-  } else {
-    // Fallback to diagnosis entities
-    const diagnosisEntities = entities.filter(e => e.type === EntityType.DIAGNOSIS);
-    if (diagnosisEntities.length > 0) {
-      // Use the entity with the most context as primary diagnosis
-      const primary = diagnosisEntities.sort((a, b) => 
-        (b.context?.length || 0) - (a.context?.length || 0))[0];
-      result.diagnosis.primaryDiagnosis = primary.context || primary.value;
-    }
+  // Process cancer type entities
+  const cancerTypes = entities.filter(e => e.type === EntityType.CANCER_TYPE);
+  if (cancerTypes.length > 0) {
+    // Use the most specific cancer type mention
+    const mostSpecific = cancerTypes.reduce((prev, current) => {
+      return (current.value.length > prev.value.length) ? current : prev;
+    }, cancerTypes[0]);
+    
+    result.diagnosis.primaryDiagnosis = mostSpecific.value;
   }
   
-  // Process biomarkers and subtypes for the subtype field
-  const biomarkerEntities = entities.filter(e => e.type === EntityType.BIOMARKER);
-  const subtypeEntities = entities.filter(e => e.type === EntityType.SUBTYPE);
-  
-  const subtypeInfo = [...biomarkerEntities, ...subtypeEntities]
-    .map(e => e.value)
-    .filter((value, index, self) => self.indexOf(value) === index) // Remove duplicates
-    .join(', ');
-  
-  if (subtypeInfo) {
-    result.diagnosis.subtype = subtypeInfo;
+  // Process diagnosis entities
+  const diagnoses = entities.filter(e => e.type === EntityType.DIAGNOSIS);
+  if (diagnoses.length > 0 && !result.diagnosis.primaryDiagnosis) {
+    result.diagnosis.primaryDiagnosis = diagnoses[0].value;
   }
   
   // Process stage information
-  const stageEntities = entities.filter(e => e.type === EntityType.STAGE);
-  if (stageEntities.length > 0) {
-    // Check for specific stage IV patterns
-    const stageIVEntity = stageEntities.find(e => 
-      e.value.includes('IV') || e.value.includes('4') || e.context?.includes('IV') || e.context?.includes('metastatic')
-    );
-    
-    if (stageIVEntity) {
-      result.diagnosis.stage = 'Stage IV';
-    } else {
-      result.diagnosis.stage = stageEntities[0].value;
-    }
+  const stages = entities.filter(e => e.type === EntityType.STAGE);
+  if (stages.length > 0) {
+    result.diagnosis.stage = stages[0].value;
   }
   
-  // Find the nearest date to diagnosis as diagnosis date
+  // Process biomarkers and combine them for subtype
+  const biomarkers = entities.filter(e => e.type === EntityType.BIOMARKER);
+  if (biomarkers.length > 0) {
+    result.diagnosis.subtype = biomarkers.map(b => b.value).join(', ');
+  }
+  
+  // Process date information - try to find the nearest date to diagnosis
   const diagnosisDate = findNearestDateToDiagnosis(entities);
   if (diagnosisDate) {
     result.diagnosis.diagnosisDate = diagnosisDate;
   }
   
-  // Process treatments
-  const treatmentEntities = entities.filter(e => e.type === EntityType.TREATMENT);
-  if (treatmentEntities.length > 0) {
-    // For simplicity, we'll just gather all treatments
-    result.treatments.pastTreatments = treatmentEntities.map(e => e.context || e.value).join('; ');
-  }
-  
-  // Process comorbidities
-  const comorbidityEntities = entities.filter(e => e.type === EntityType.COMORBIDITY);
-  if (comorbidityEntities.length > 0) {
-    result.medicalHistory.comorbidities = comorbidityEntities.map(e => e.value).join(', ');
-  }
-  
-  // Process allergies
-  const allergyEntities = entities.filter(e => e.type === EntityType.ALLERGY);
-  if (allergyEntities.length > 0) {
-    result.medicalHistory.allergies = allergyEntities.map(e => e.value).join(', ');
+  // Process treatment information
+  const treatments = entities.filter(e => e.type === EntityType.TREATMENT);
+  if (treatments.length > 0) {
+    result.treatments.currentTreatment = treatments[0].value;
+    
+    if (treatments.length > 1) {
+      // If multiple treatments, use the rest as past treatments
+      result.treatments.pastTreatments = treatments.slice(1).map(t => t.value).join(', ');
+    }
   }
   
   // Process medications
-  const medicationEntities = entities.filter(e => e.type === EntityType.MEDICATION);
-  if (medicationEntities.length > 0) {
-    result.medicalHistory.medications = medicationEntities.map(e => e.value).join(', ');
+  const medications = entities.filter(e => e.type === EntityType.MEDICATION);
+  if (medications.length > 0) {
+    result.medicalHistory.medications = medications.map(m => m.value).join(', ');
   }
   
-  // Process age
-  const ageEntities = entities.filter(e => e.type === EntityType.AGE);
-  if (ageEntities.length > 0) {
-    result.demographics.age = ageEntities[0].value;
+  // Process comorbidities
+  const comorbidities = entities.filter(e => e.type === EntityType.COMORBIDITY);
+  if (comorbidities.length > 0) {
+    result.medicalHistory.comorbidities = comorbidities.map(c => c.value).join(', ');
   }
   
-  // Process gender
-  const genderEntities = entities.filter(e => e.type === EntityType.GENDER);
-  if (genderEntities.length > 0) {
-    result.demographics.gender = genderEntities[0].value;
+  // Process allergies
+  const allergies = entities.filter(e => e.type === EntityType.ALLERGY);
+  if (allergies.length > 0) {
+    result.medicalHistory.allergies = allergies.map(a => a.value).join(', ');
+  }
+  
+  // Process demographics
+  const ages = entities.filter(e => e.type === EntityType.AGE);
+  if (ages.length > 0) {
+    result.demographics.age = ages[0].value;
+  }
+  
+  const genders = entities.filter(e => e.type === EntityType.GENDER);
+  if (genders.length > 0) {
+    result.demographics.gender = genders[0].value;
   }
   
   return result;
@@ -769,43 +674,83 @@ function processEntities(entities: MedicalEntity[]): any {
  * Find the nearest date to a diagnosis mention
  */
 function findNearestDateToDiagnosis(entities: MedicalEntity[]): string {
-  const diagnosisEntities = entities.filter(e => 
-    e.type === EntityType.DIAGNOSIS || e.type === EntityType.CANCER_TYPE
-  );
-  const dateEntities = entities.filter(e => e.type === EntityType.DATE);
+  const diagnoses = entities.filter(e => e.type === EntityType.DIAGNOSIS);
+  const dates = entities.filter(e => e.type === EntityType.DATE);
   
-  if (diagnosisEntities.length === 0 || dateEntities.length === 0) {
-    // If no dates found, return the first date if available
-    return dateEntities.length > 0 ? dateEntities[0].value : '';
-  }
-  
-  // Find the diagnosis entity with earliest position
-  const diagnosis = diagnosisEntities.sort((a, b) => a.position - b.position)[0];
-  
-  // Find the date closest to diagnosis
-  let nearestDate = dateEntities[0];
-  let minDistance = Math.abs(diagnosis.position - nearestDate.position);
-  
-  for (let i = 1; i < dateEntities.length; i++) {
-    const distance = Math.abs(diagnosis.position - dateEntities[i].position);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearestDate = dateEntities[i];
+  if (diagnoses.length > 0 && dates.length > 0) {
+    // Find the diagnosis position
+    const diagnosisPosition = diagnoses[0].position;
+    
+    // Find the date closest to the diagnosis
+    let closestDate = dates[0];
+    let minDistance = Math.abs(diagnosisPosition - closestDate.position);
+    
+    for (let i = 1; i < dates.length; i++) {
+      const distance = Math.abs(diagnosisPosition - dates[i].position);
+      if (distance < minDistance) {
+        closestDate = dates[i];
+        minDistance = distance;
+      }
     }
+    
+    return closestDate.value;
   }
   
-  return nearestDate.value;
+  return dates.length > 0 ? dates[0].value : '';
 }
 
 /**
  * Main function to extract medical information from text
  */
 export function extractMedicalInfo(text: string): any {
-  // Extract entities
+  // First, check if we have Italian text
+  let isItalianDocument = false;
+  
+  // Common Italian medical terms
+  const italianTerms = ['paziente', 'diagnosi', 'anamnesi', 'terapia', 'medico', 'ospedale', 
+                        'polmone', 'stadio', 'anni', 'carcinoma', 'tumore', 'referto'];
+  
+  const lowerText = text.toLowerCase();
+  let italianTermCount = 0;
+  
+  for (const term of italianTerms) {
+    if (lowerText.includes(term)) {
+      italianTermCount++;
+    }
+  }
+  
+  // If we find several Italian terms, assume it's an Italian document
+  if (italianTermCount >= 3) {
+    isItalianDocument = true;
+    console.log('Italian medical document detected');
+  }
+  
+  // Check for specific Italian markers in the text
+  if (lowerText.includes('gentile collega') || 
+      lowerText.includes('anamnesi familiare') || 
+      lowerText.includes('paziente di anni') ||
+      lowerText.includes('reparto di oncologia') ||
+      lowerText.includes('visita multidisciplinare')) {
+    isItalianDocument = true;
+    console.log('Italian medical document detected');
+  }
+  
+  // Patient age detection
+  const ageMatchItalian = lowerText.match(/paziente\s+di\s+(\d{1,3})\s+anni/i);
+  if (ageMatchItalian) {
+    console.log(`Patient age detected: ${ageMatchItalian[1]}`);
+  }
+  
+  // Patient gender detection
+  if (lowerText.includes('sesso femminile') || lowerText.includes('donna di anni')) {
+    console.log('Patient gender detected: F');
+  } else if (lowerText.includes('sesso maschile') || lowerText.includes('uomo di anni')) {
+    console.log('Patient gender detected: M');
+  }
+  
+  // Extract all medical entities
   const entities = extractEntities(text);
   
-  console.log('Extracted entities:', entities.length);
-  
-  // Process entities
+  // Process entities into structured information
   return processEntities(entities);
 }

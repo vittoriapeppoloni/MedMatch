@@ -14,6 +14,9 @@ import natural from "natural";
 import { extractEntities } from "./nlp";
 // Import enhanced NLP for Italian medical documents
 import { extractMedicalInfo as enhancedExtractMedicalInfo } from "./enhanced-nlp";
+
+// Import specialized Italian trial matcher
+import { matchPatientToTrials as italianMatchPatientToTrials } from "./italian-trial-matcher";
 // Import ClinicalTrials.gov integration
 import { searchClinicalTrials, getClinicalTrialByNctId } from './clinicaltrials';
 // Import PDF processing module
@@ -202,8 +205,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue with stored trials if API fails
       }
       
-      // Find matching trials
-      const matchedTrials = matchPatientToTrials(extractedInfo, availableTrials);
+      // Find matching trials using specialized Italian trial matcher
+      const matchedTrials = italianMatchPatientToTrials(extractedInfo, availableTrials);
       
       // Return both extracted info and matched trials
       res.json({
@@ -498,9 +501,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         demographics: extractedInfo.demographics
       });
       
-      // Find matching trials
+      // Find matching trials using specialized Italian trial matcher
       const allTrials = await storage.getClinicalTrials();
-      const matchResults = matchPatientToTrials(extractedInfo, allTrials);
+      const matchResults = italianMatchPatientToTrials(extractedInfo, allTrials);
       
       // Save trial matches
       const savedMatches = [];
