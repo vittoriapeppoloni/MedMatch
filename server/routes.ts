@@ -14,10 +14,23 @@ import natural from "natural";
 import { extractEntities } from "./nlp";
 // Import ClinicalTrials.gov integration
 import { searchClinicalTrials, getClinicalTrialByNctId } from './clinicaltrials';
+// Import PDF processing module
+import { extractTextFromPDF } from './pdf-processor';
+// For file uploads
+import multer from 'multer';
+import { NextFunction } from 'express';
 
 // Create tokenizer for NLP operations
 const tokenizer = new natural.WordTokenizer();
 const stemmer = natural.PorterStemmer;
+
+// Configure multer for handling file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up API prefix
@@ -225,6 +238,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(document);
     } catch (error) {
       handleError(res, error);
+    }
+  });
+  
+  // Process PDF files on the server (much faster than browser-based extraction)
+  app.post(`${apiPrefix}/process-pdf`, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      
+      console.log(`Processing PDF file: ${req.file.originalname} (${req.file.size} bytes)`);
+      
+      // Use our server-side PDF extraction (much faster than browser-based)
+      const startTime = Date.now();
+      const extractedText = await extractTextFromPDF(req.file.buffer);
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`PDF extraction completed in ${processingTime}ms`);
+      
+      // Return the extracted text
+      res.json({ 
+        text: extractedText,
+        processingTime
+      });
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      res.status(500).json({ 
+        message: 'Error processing PDF file',
+        error: error.message 
+      });
     }
   });
 

@@ -54,54 +54,42 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
       setUploadedFile(file);
       
       // Show a loading message while processing the file
-      form.setValue('medicalText', 'Processing file, please wait...\n\nImportant: PDF processing takes time. Please wait for the extraction to complete before submitting. We\'re extracting the first few pages for quick analysis.');
+      form.setValue('medicalText', 'Processing file, please wait...\n\nOur server is extracting text from your PDF using high-performance tools.');
       setIsProcessingFile(true);
       
       try {
-        // For PDF files, use the PDF.js extraction logic
+        // For PDF files, use server-side processing (much faster and more reliable)
         if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
           try {
-            // Use our PDF extraction utility with proper text extraction
-            const extractedText = await readFileAsText(file);
+            // Create a FormData object to send the file
+            const formData = new FormData();
+            formData.append('file', file);
             
-            // Check for timeout message or raw PDF data
-            const isTimeout = extractedText.includes('too long to process') || 
-                             extractedText.includes('timed out');
+            // Make a request to the server endpoint
+            console.log('Sending PDF to server for processing...');
+            const response = await fetch('/api/process-pdf', {
+              method: 'POST',
+              body: formData,
+            });
             
-            const isRawPDF = extractedText.startsWith('%PDF') || 
-                            extractedText.includes('obj') ||
-                            extractedText.includes('endobj');
+            if (!response.ok) {
+              throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
             
-            if (isTimeout) {
-              // If we got a timeout message, show a better error message
-              form.setValue('medicalText', 
-              `Your PDF is too complex for our browser-based extraction tool.
+            const result = await response.json();
+            console.log(`PDF processed in ${result.processingTime}ms`);
+            
+            // Use the extracted text
+            form.setValue('medicalText', result.text);
+          } catch (error) {
+            console.error('Error processing PDF:', error);
+            form.setValue('medicalText', 
+            `Error extracting text from PDF. Our server couldn't process this file.
 
 Please try:
 1. Copy and paste the text directly from your PDF reader application
-2. Try a smaller PDF file (fewer pages)
-3. Use a plain text (.txt) file instead
-
-This limitation is due to browser restrictions when processing larger files.`);
-            } else if (isRawPDF) {
-              // If we're getting raw PDF data, show a helpful error message
-              form.setValue('medicalText', 
-              `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
-
-This happens because:
-1. The PDF contains image-based content instead of text
-2. The PDF has security restrictions
-3. The PDF structure is not standard
-
-Please open your PDF in another application (like Adobe Reader), select the text content, and paste it directly into this field. Or try uploading a plain text (.txt) file instead.`);
-            } else {
-              // Otherwise use the extracted text
-              form.setValue('medicalText', extractedText);
-            }
-          } catch (error) {
-            console.error('Error extracting PDF text:', error);
-            form.setValue('medicalText', 
-            `Error extracting text from PDF. Please try again or paste the text manually.`);
+2. Try a different PDF file
+3. Use a plain text (.txt) file instead`);
           }
         } else {
           // For non-PDF files, use standard text extraction
@@ -165,78 +153,16 @@ Please open your PDF in another application (like Adobe Reader), select the text
                 setIsDragging(false);
                 
                 if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  const file = e.dataTransfer.files[0];
-                  setUploadedFile(file);
-                  
-                  // Show a loading message while processing the file
-                  form.setValue('medicalText', 'Processing file, please wait...\n\nImportant: PDF processing takes time. Please wait for the extraction to complete before submitting. We\'re extracting the first few pages for quick analysis.');
-                  setIsProcessingFile(true);
-                  
-                  try {
-                    // For PDF files, use the PDF.js extraction logic
-                    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-                      try {
-                        // Use our PDF extraction utility with proper text extraction
-                        const extractedText = await readFileAsText(file);
-                        
-                        // Check for timeout message or raw PDF data
-                        const isTimeout = extractedText.includes('too long to process') || 
-                                         extractedText.includes('timed out');
-                        
-                        const isRawPDF = extractedText.startsWith('%PDF') || 
-                                        extractedText.includes('obj') ||
-                                        extractedText.includes('endobj');
-                        
-                        if (isTimeout) {
-                          // If we got a timeout message, show a better error message
-                          form.setValue('medicalText', 
-                          `Your PDF is too complex for our browser-based extraction tool.
-
-Please try:
-1. Copy and paste the text directly from your PDF reader application
-2. Try a smaller PDF file (fewer pages)
-3. Use a plain text (.txt) file instead
-
-This limitation is due to browser restrictions when processing larger files.`);
-                        } else if (isRawPDF) {
-                          // If we're getting raw PDF data, show a helpful error message
-                          form.setValue('medicalText', 
-                          `We've detected you're trying to upload a PDF, but the system couldn't extract readable text from it.
-
-This happens because:
-1. The PDF contains image-based content instead of text
-2. The PDF has security restrictions
-3. The PDF structure is not standard
-
-Please open your PDF in another application (like Adobe Reader), select the text content, and paste it directly into this field. Or try uploading a plain text (.txt) file instead.`);
-                        } else {
-                          // Otherwise use the extracted text
-                          form.setValue('medicalText', extractedText);
-                        }
-                      } catch (error) {
-                        console.error('Error extracting PDF text:', error);
-                        form.setValue('medicalText', 
-                        `Error extracting text from PDF. Please try again or paste the text manually.`);
-                      }
-                    } else {
-                      // For non-PDF files, use standard text extraction
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        if (event.target?.result) {
-                          form.setValue('medicalText', event.target.result.toString());
-                          setIsProcessingFile(false);
-                        }
-                      };
-                      reader.readAsText(file);
-                      return; // Exit early as we're using async reader
+                  // Use the same handler as for the file input to maintain consistency
+                  const fileList = e.dataTransfer.files;
+                  const event = {
+                    target: {
+                      files: fileList
                     }
-                  } catch (error) {
-                    console.error('Error reading file:', error);
-                    form.setValue('medicalText', 'Error reading file. Please try again or paste the text manually.');
-                  }
+                  } as unknown as React.ChangeEvent<HTMLInputElement>;
                   
-                  // If we reach here, we've completed processing
-                  setIsProcessingFile(false);
+                  // Call the existing handler
+                  handleFileChange(event);
                 }
               }}
             >
