@@ -12,6 +12,8 @@ import {
 import natural from "natural";
 // Import the external NLP module only for advanced processing
 import { extractEntities } from "./nlp";
+// Import enhanced NLP for Italian medical documents
+import { extractMedicalInfo as enhancedExtractMedicalInfo } from "./enhanced-nlp";
 // Import ClinicalTrials.gov integration
 import { searchClinicalTrials, getClinicalTrialByNctId } from './clinicaltrials';
 // Import PDF processing module
@@ -131,8 +133,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Medical text is required' });
       }
       
-      // Extract information from the medical text
-      const extractedInfo = extractMedicalInfo(medicalText);
+      // Extract information from the medical text using enhanced NLP for Italian documents
+      const extractedInfo = enhancedExtractMedicalInfo(medicalText);
       
       // Search for trials from ClinicalTrials.gov based on extracted diagnosis
       let availableTrials = await storage.getClinicalTrials(); // Fallback to stored trials
@@ -282,8 +284,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Processing medical text:", text.substring(0, 100) + "..."); // Log a preview
       
-      // Extract medical information using our custom NLP function
-      const extractedInfo = extractMedicalInfo(text);
+      // Extract medical information using our enhanced NLP for Italian documents
+      const extractedInfo = enhancedExtractMedicalInfo(text);
       
       // Check if any information was extracted
       const hasExtractedInfo = 
