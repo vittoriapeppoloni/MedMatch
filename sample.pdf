@@ -1,0 +1,68 @@
+%PDF-1.3
+1 0 obj
+<< /Type /Catalog
+   /Pages 2 0 R
+>>
+endobj
+2 0 obj
+<< /Type /Pages
+   /Kids [3 0 R]
+   /Count 1
+>>
+endobj
+3 0 obj
+<< /Type /Page
+   /Parent 2 0 R
+   /Resources << /Font << /F1 4 0 R >> >>
+   /MediaBox [0 0 612 792]
+   /Contents 5 0 R
+>>
+endobj
+4 0 obj
+<< /Type /Font
+   /Subtype /Type1
+   /BaseFont /Helvetica
+>>
+endobj
+5 0 obj
+<< /Length 73 >>
+stream
+BT
+/F1 24 Tf
+100 700 Td
+(Sample Medical Patient Document) Tj
+/F1 12 Tf
+0 -50 Td
+(Patient ID: 12345) Tj
+0 -20 Td
+(Age: 62) Tj
+0 -20 Td
+(Gender: Male) Tj
+0 -20 Td
+(Diagnosis: Stage III Lung Adenocarcinoma) Tj
+0 -20 Td
+(TNM: T2N2M0) Tj
+0 -20 Td
+(Treatment: Neoadjuvant Chemo + Immunotherapy) Tj
+0 -20 Td
+(PD-L1: 70%) Tj
+0 -20 Td
+(ECOG PS: 1) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000233 00000 n
+0000000300 00000 n
+trailer
+<< /Size 6
+   /Root 1 0 R
+>>
+startxref
+423
+%%EOF
