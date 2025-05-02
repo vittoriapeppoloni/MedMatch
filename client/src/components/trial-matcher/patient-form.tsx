@@ -40,7 +40,7 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      medicalText: "57-year-old female with Stage 2 (T2N0M0) HR+/HER2- breast cancer diagnosed in October 2023. Patient underwent lumpectomy with negative margins and sentinel lymph node biopsy with 0/3 nodes positive. Currently completing radiation therapy and scheduled to start hormone therapy next month. Medical history includes hypertension (controlled with lisinopril) and type 2 diabetes (HbA1c 6.8%). No known drug allergies.",
+      medicalText: "", // Empty default value as requested
     },
   });
   

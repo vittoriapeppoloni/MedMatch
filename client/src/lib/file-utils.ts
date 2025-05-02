@@ -19,34 +19,28 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 console.log("Using PDF.js version:", pdfjs.version);
 
 /**
- * Extracts text from a PDF file with a timeout
+ * Extracts text from a PDF file
  * @param file The PDF file to extract text from
  * @returns The extracted text
  */
 export async function extractTextFromPDF(file: File): Promise<string> {
-  // Create a promise that rejects after a timeout
-  const timeout = (ms: number) => new Promise((_, reject) => 
-    setTimeout(() => reject(new Error(`PDF extraction timed out after ${ms}ms`)), ms)
-  );
-  
   try {
-    // Set a 5-second timeout for the entire extraction process
-    const result = await Promise.race([
-      extractPDFText(file),
-      timeout(5000) // 5 seconds timeout
-    ]);
+    // Start a timer to measure extraction performance
+    const startTime = performance.now();
     
-    return result as string;
+    // Call the PDF extraction function
+    const extractedText = await extractPDFText(file);
+    
+    // Calculate extraction time
+    const extractionTime = (performance.now() - startTime) / 1000;
+    console.log(`PDF text extraction completed in ${extractionTime.toFixed(2)} seconds`);
+    
+    return extractedText;
   } catch (error: any) {
     console.error('Error extracting text from PDF:', error);
     const errorMessage = error.message || 'Unknown error';
     
-    // Return a more specific error message for timeout
-    if (errorMessage.includes('timed out')) {
-      return `Error: The PDF extraction timed out. Your PDF is too complex for our browser-based tool. Please copy and paste the text directly from your PDF reader.`;
-    }
-    
-    return `Error extracting text from PDF: ${errorMessage}. Please copy and paste the text manually.`;
+    return `Error extracting text from PDF: ${errorMessage}. Please copy and paste the text manually from your PDF reader application.`;
   }
 }
 
@@ -66,39 +60,105 @@ async function extractPDFText(file: File): Promise<string> {
   
   const pdf = await loadingTask.promise;
   
-  // Only process the first 3 pages for faster extraction
-  const MAX_PAGES = Math.min(pdf.numPages, 3);
+  // Process the first 5 pages for a better sample of the document
+  const MAX_PAGES = Math.min(pdf.numPages, 5);
   let fullText = '';
   
-  // Process pages in parallel for speed
-  const pagePromises = [];
-  for (let i = 1; i <= MAX_PAGES; i++) {
-    pagePromises.push(processPage(pdf, i));
+  try {
+    // Process pages in parallel for speed
+    const pagePromises = [];
+    for (let i = 1; i <= MAX_PAGES; i++) {
+      pagePromises.push(processPage(pdf, i));
+    }
+    
+    const pageTexts = await Promise.all(pagePromises);
+    fullText = pageTexts.join('\n\n');
+    
+    // Check if the extracted text is meaningful
+    const meaningfulContent = fullText.replace(/\s+/g, ' ').trim();
+    if (!meaningfulContent || meaningfulContent.length < 50) {
+      return `The PDF extraction didn't produce readable text. This could be because:
+1. The PDF contains scanned images rather than text
+2. The PDF has special security restrictions
+3. The text formatting is unusual
+
+Please either:
+- Copy and paste the text directly from your PDF reader
+- Try a different PDF with searchable text content`;
+    }
+    
+    if (pdf.numPages > MAX_PAGES) {
+      fullText += `\n\n[Note: Only showing text from the first ${MAX_PAGES} pages of ${pdf.numPages} total]`;
+    }
+    
+    return fullText;
+  } catch (error) {
+    console.error('Error during PDF text extraction:', error);
+    return `Error extracting text from the PDF. Please try a different file or copy and paste the text manually.`;
   }
-  
-  const pageTexts = await Promise.all(pagePromises);
-  fullText = pageTexts.join('\n\n');
-  
-  if (pdf.numPages > MAX_PAGES) {
-    fullText += `\n\n[Note: Only showing text from the first ${MAX_PAGES} pages of ${pdf.numPages} total]`;
-  }
-  
-  return fullText;
 }
 
 /**
  * Process a single page of a PDF
  */
 async function processPage(pdf: any, pageNum: number): Promise<string> {
-  const page = await pdf.getPage(pageNum);
-  const textContent = await page.getTextContent();
-  
-  // Extract and join text items
-  const textItems = textContent.items.map((item: any) => 
-    typeof item.str === 'string' ? item.str : ''
-  );
-  
-  return textItems.join(' ');
+  try {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent({
+      normalizeWhitespace: true,  // Normalize whitespace for better readability
+      disableCombineTextItems: false  // Combine text items for better extraction
+    });
+    
+    // Extract text with better formatting
+    if (!textContent.items || textContent.items.length === 0) {
+      return `[Page ${pageNum} - No text content detected]`;
+    }
+    
+    // Track the last y position to detect line breaks
+    let lastY: number | null = null;
+    let textChunks: string[] = [];
+    
+    // Define interface for text item
+    interface TextItem {
+      str: string;
+      transform: number[];
+    }
+    
+    // Process each text item with better positioning awareness
+    textContent.items.forEach((item: TextItem) => {
+      if (typeof item.str !== 'string' || item.str.trim() === '') {
+        return; // Skip empty items
+      }
+      
+      // Ensure transform array exists and has enough elements
+      if (!item.transform || item.transform.length < 6) {
+        textChunks.push(item.str + ' ');
+        return;
+      }
+      
+      // Check if we need to add a line break (when y position changes significantly)
+      if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
+        textChunks.push('\n');
+      }
+      
+      // Add a space if the last chunk doesn't end with whitespace
+      if (textChunks.length > 0 && !textChunks[textChunks.length - 1].endsWith(' ') && 
+          !textChunks[textChunks.length - 1].endsWith('\n')) {
+        textChunks.push(' ');
+      }
+      
+      // Add the text content
+      textChunks.push(item.str);
+      
+      // Update the last y position
+      lastY = item.transform[5];
+    });
+    
+    return textChunks.join('');
+  } catch (error) {
+    console.error(`Error processing page ${pageNum}:`, error);
+    return `[Error processing page ${pageNum}]`;
+  }
 }
 
 /**
