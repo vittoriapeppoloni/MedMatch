@@ -259,8 +259,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Processing medical text:", text.substring(0, 100) + "..."); // Log a preview
       
-      // Extract medical information using our enhanced NLP for Italian documents
-      const extractedInfo = enhancedExtractMedicalInfo(text);
+      // Try to use Llama model for enhanced extraction
+      let extractedInfo;
+      
+      try {
+        // Import the local LLM module dynamically
+        const { fullMedicalInformationExtraction, initializeLlama, isLlamaAvailable } = await import('./local-llm');
+        
+        // Check if LLM is available
+        if (!isLlamaAvailable()) {
+          await initializeLlama();
+        }
+        
+        // If Llama is available and initialized, use it for extraction
+        console.log("Using Llama for enhanced medical information extraction");
+        extractedInfo = await fullMedicalInformationExtraction(text);
+      } catch (llamaError) {
+        // Fallback to the rule-based extraction if LLM fails
+        console.error("LLM extraction failed, falling back to rule-based extraction:", llamaError);
+        extractedInfo = enhancedExtractMedicalInfo(text);
+      }
       
       // Check if any information was extracted
       const hasExtractedInfo = 
