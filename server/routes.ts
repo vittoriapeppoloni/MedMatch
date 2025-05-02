@@ -139,66 +139,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract information from the medical text using enhanced NLP for Italian documents
       const extractedInfo = enhancedExtractMedicalInfo(medicalText);
       
-      // Search for trials from ClinicalTrials.gov based on extracted diagnosis
-      let availableTrials = await storage.getClinicalTrials(); // Fallback to stored trials
+      // Fetch ALL trials from IRCCS Istituto Nazionale dei Tumori
+      // First get all stored trials as a base
+      let availableTrials = await storage.getClinicalTrials(); 
       
       try {
-        const condition = safeString(extractedInfo.diagnosis.primaryDiagnosis).toLowerCase();
-        if (condition && condition !== '') {
-          // Try to get more specific trials from ClinicalTrials.gov
-          // Specific to IRCCS Istituto Nazionale dei Tumori
-          const clinicalTrialsGovTrials = await searchClinicalTrials({ 
-            condition, 
-            status: 'recruiting',
-            facilityName: 'IRCCS Istituto Nazionale dei Tumori',
-            limit: 20 
-          });
+        // Always fetch all IRCCS trials for complete matching
+        console.log("Fetching ALL trials from IRCCS Istituto Nazionale dei Tumori");
+        const allIRCCSTrials = await searchClinicalTrials({ 
+          condition: 'cancer', 
+          status: 'recruiting',
+          facilityName: 'IRCCS Istituto Nazionale dei Tumori',
+          limit: 250 // Get more trials to ensure comprehensive matching
+        });
+        
+        if (allIRCCSTrials && allIRCCSTrials.length > 0) {
+          // Add IDs to the trials and ensure all required fields have values (not undefined)
+          const trialsWithIds = allIRCCSTrials.map((trial, index) => ({
+            ...trial,
+            id: index + 1000, // Start from 1000 to avoid conflicts with existing IDs
+            status: trial.status || null,
+            phase: trial.phase || null,
+            facility: trial.facility || null,
+            distance: trial.distance || 0,
+            primaryPurpose: trial.primaryPurpose || null,
+            intervention: trial.intervention || null,
+            summary: trial.summary || null,
+            eligibilityCriteria: trial.eligibilityCriteria || { inclusions: "", exclusions: "" }
+          }));
           
-          if (clinicalTrialsGovTrials && clinicalTrialsGovTrials.length > 0) {
-            // Add IDs to the trials and ensure all required fields have values (not undefined)
-            const trialsWithIds = clinicalTrialsGovTrials.map((trial, index) => ({
-              ...trial,
-              id: index + 1000, // Start from 1000 to avoid conflicts with existing IDs
-              status: trial.status || null,
-              phase: trial.phase || null,
-              facility: trial.facility || null,
-              distance: trial.distance || 0,
-              primaryPurpose: trial.primaryPurpose || null,
-              intervention: trial.intervention || null,
-              summary: trial.summary || null,
-              eligibilityCriteria: trial.eligibilityCriteria || { inclusions: "", exclusions: "" }
-            }));
-            
-            // Use the trials from ClinicalTrials.gov
-            console.log(`Found ${trialsWithIds.length} trials from ClinicalTrials.gov for condition: ${condition}`);
-            availableTrials = trialsWithIds;
-          } else {
-            // Use more general cancer search if condition is too specific
-            console.log(`No trials found for specific condition: ${condition}, falling back to general cancer search`);
-            const cancerTrials = await searchClinicalTrials({ 
-              condition: 'cancer', 
-              status: 'recruiting',
-              facilityName: 'IRCCS Istituto Nazionale dei Tumori',
-              limit: 20 
-            });
-            
-            if (cancerTrials && cancerTrials.length > 0) {
-              // Add IDs to the cancer trials and ensure all required fields are present
-              const cancerTrialsWithIds = cancerTrials.map((trial, index) => ({
-                ...trial,
-                id: index + 2000, // Start from 2000 to avoid conflicts
-                status: trial.status || null,
-                phase: trial.phase || null,
-                facility: trial.facility || null,
-                distance: trial.distance || 0,
-                primaryPurpose: trial.primaryPurpose || null,
-                intervention: trial.intervention || null,
-                summary: trial.summary || null,
-                eligibilityCriteria: trial.eligibilityCriteria || { inclusions: "", exclusions: "" }
-              }));
-              availableTrials = cancerTrialsWithIds;
-            }
-          }
+          // Use ALL the trials from IRCCS Istituto Nazionale dei Tumori
+          console.log(`Found ${trialsWithIds.length} trials from IRCCS Istituto Nazionale dei Tumori`);
+          availableTrials = trialsWithIds;
         }
       } catch (apiError) {
         console.error("Error fetching trials from ClinicalTrials.gov:", apiError);
@@ -501,8 +473,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         demographics: extractedInfo.demographics
       });
       
+      // Fetch ALL trials from IRCCS Istituto Nazionale dei Tumori for complete matching
+      console.log("Fetching ALL trials from IRCCS Istituto Nazionale dei Tumori for comprehensive matching");
+      let allTrials = await storage.getClinicalTrials();
+      
+      try {
+        const irccTrials = await searchClinicalTrials({ 
+          condition: 'cancer', 
+          status: 'recruiting',
+          facilityName: 'IRCCS Istituto Nazionale dei Tumori',
+          limit: 250 
+        });
+        
+        if (irccTrials && irccTrials.length > 0) {
+          // Add IDs to the trials
+          const trialsWithIds = irccTrials.map((trial, index) => ({
+            ...trial,
+            id: index + 5000, // Start from 5000 to avoid conflicts
+            status: trial.status || null,
+            phase: trial.phase || null,
+            facility: trial.facility || null,
+            distance: trial.distance || 0,
+            primaryPurpose: trial.primaryPurpose || null,
+            intervention: trial.intervention || null,
+            summary: trial.summary || null,
+            eligibilityCriteria: trial.eligibilityCriteria || { inclusions: "", exclusions: "" }
+          }));
+          
+          console.log(`Found ${trialsWithIds.length} trials for comprehensive matching`);
+          allTrials = trialsWithIds;
+        }
+      } catch (error) {
+        console.error("Error fetching trials:", error);
+      }
+      
       // Find matching trials using specialized Italian trial matcher
-      const allTrials = await storage.getClinicalTrials();
       const matchResults = italianMatchPatientToTrials(extractedInfo, allTrials);
       
       // Save trial matches

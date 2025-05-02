@@ -64,6 +64,7 @@ export function matchPatientToTrials(extractedInfo: any, trials: any[]) {
     console.log(`Biomarker detection - KRAS: ${hasKRAS}, KRAS G12C: ${krasG12C}, STK11: ${hasSTK11}, PD-L1: ${hasPDL1} (${pdl1Percentage}%)`);
     
     // Process each trial
+    console.log(`Processing ${trials.length} trials for matching`);
     for (const trial of trials) {
       const title = safeString(trial.title).toLowerCase();
       const condition = safeString(trial.condition).toLowerCase();
@@ -71,7 +72,7 @@ export function matchPatientToTrials(extractedInfo: any, trials: any[]) {
       const exclusions = safeString(trial.eligibilityCriteria?.exclusions).toLowerCase();
       const summary = safeString(trial.summary).toLowerCase();
       
-      let score = 5; // Base score
+      let score = 10; // Higher base score to ensure more trials match
       const matchReasons = [];
       const limitingFactors = [];
       
@@ -361,8 +362,8 @@ export function matchPatientToTrials(extractedInfo: any, trials: any[]) {
     // Sort by match score (highest first)
     matchedTrials.sort((a, b) => b.matchScore - a.matchScore);
     
-    // Take top 10 trials
-    return matchedTrials.slice(0, 10);
+    // Return more trials - up to 20
+    return matchedTrials.slice(0, 20);
     
   } catch (error) {
     console.error("Error in Italian trial matcher:", error);
