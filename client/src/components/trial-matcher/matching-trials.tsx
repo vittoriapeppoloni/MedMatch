@@ -160,10 +160,10 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
                   </div>
                   <div className="flex flex-col items-end">
                     <span className="px-3 py-1 bg-success text-white text-xs font-medium rounded-full">
-                      {match.matchScore}% Match
+                      {typeof match.matchScore === 'number' ? Math.round(match.matchScore) : match.matchScore}% Match
                     </span>
                     <span className="text-xs text-neutral-500 mt-2">
-                      {trial?.distance} miles away
+                      {trial?.distance ? `${trial.distance} miles away` : 'IRCCS INT Milano'}
                     </span>
                   </div>
                 </div>
@@ -237,7 +237,7 @@ export default function MatchingTrials({ trials }: MatchingTrialsProps) {
                             </p>
                           </div>
                           <span className="px-3 py-1 bg-success text-white text-xs font-medium rounded-full">
-                            {match.matchScore}% Match
+                            {typeof match.matchScore === 'number' ? Math.round(match.matchScore) : match.matchScore}% Match
                           </span>
                         </div>
                         

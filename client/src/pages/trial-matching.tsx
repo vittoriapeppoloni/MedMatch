@@ -85,9 +85,29 @@ export default function TrialMatching() {
 
   // Determine which data to use - either from direct API call or from database
   const displayExtractedInfo = extractedData || (extractedInfo && !infoLoading ? extractedInfo : null);
-  const displayTrialMatches = matchedTrials.length > 0 ? 
-    matchedTrials.map(match => ({ ...match, trial: match })) : 
-    (trialMatches && !matchesLoading ? trialMatches : [] as any[]);
+  
+  // Fix the structure for trial matches
+  let displayTrialMatches: any[] = [];
+  
+  if (matchedTrials.length > 0) {
+    // Direct API call case
+    displayTrialMatches = matchedTrials.map(trial => {
+      // Make sure we have proper structure for the trial info
+      return {
+        matchScore: trial.matchScore,
+        matchReasons: trial.matchReasons || [],
+        limitingFactors: trial.limitingFactors || [],
+        // The trial itself contains all the data we need
+        trial: trial
+      };
+    });
+  } else if (trialMatches && !matchesLoading) {
+    // Database case
+    displayTrialMatches = trialMatches;
+  }
+    
+  console.log("Matched trials:", matchedTrials);
+  console.log("Display trials:", displayTrialMatches);
 
   return (
     <div>
