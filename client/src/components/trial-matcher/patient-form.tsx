@@ -83,7 +83,8 @@ export default function PatientForm({ onSubmit, isProcessing }: PatientFormProps
             form.setValue('medicalText', result.text);
           } catch (error) {
             console.error('Error processing PDF:', error);
-            const errorMessage = error.toString().includes('400') ? 
+            const errorText = String(error);
+            const errorMessage = errorText.includes('400') ? 
               'The server rejected this PDF because it appears to be encrypted or contains binary data.' :
               'Error extracting text from the PDF.';
             
